@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,25 +6,140 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   useWindowDimensions,
+  Animated,
+  Modal,
 } from 'react-native';
 
 export default function LibroDetalleScreen({ route, navigation }) {
   const { libro } = route.params;
   const { width, height } = useWindowDimensions();
+  const [coverVisible, setCoverVisible] = useState(false);
+  const [noticeVisible, setNoticeVisible] = useState(false);
+  const noticeTimer = useRef(null);
+
+  const coverFade = useRef(new Animated.Value(0)).current;
+  const contentAnim = useRef(new Animated.Value(0)).current;
+  const modalOpacity = useRef(new Animated.Value(0)).current;
+  const modalScale = useRef(new Animated.Value(0.96)).current;
+  const editScale = useRef(new Animated.Value(1)).current;
+  const readScale = useRef(new Animated.Value(1)).current;
+  const noticeOpacity = useRef(new Animated.Value(0)).current;
+  const noticeScale = useRef(new Animated.Value(0.96)).current;
 
   // Poner el título del libro en el header
   useEffect(() => {
     navigation.setOptions({ title: libro.titulo });
   }, [navigation, libro.titulo]);
 
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(coverFade, {
+        toValue: 1,
+        duration: 420,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentAnim, {
+        toValue: 1,
+        duration: 520,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [coverFade, contentAnim]);
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimer.current) {
+        clearTimeout(noticeTimer.current);
+      }
+    };
+  }, []);
+
+
   const handleEditar = useCallback(() => {
     navigation.navigate('AgregarLibro', { libro, modoEdicion: true });
   }, [navigation, libro]);
 
   const handleLeer = useCallback(() => {
-    Alert.alert('Próximamente', 'Función disponible próximamente');
+    setNoticeVisible(true);
+    noticeOpacity.setValue(0);
+    noticeScale.setValue(0.96);
+    Animated.parallel([
+      Animated.timing(noticeOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(noticeScale, {
+        toValue: 1,
+        friction: 7,
+        tension: 140,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    if (noticeTimer.current) {
+      clearTimeout(noticeTimer.current);
+    }
+    noticeTimer.current = setTimeout(() => {
+      Animated.timing(noticeOpacity, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }).start(() => setNoticeVisible(false));
+    }, 1600);
+  }, []);
+
+  const openCover = useCallback(() => {
+    setCoverVisible(true);
+    modalOpacity.setValue(0);
+    modalScale.setValue(0.96);
+    Animated.parallel([
+      Animated.timing(modalOpacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.spring(modalScale, {
+        toValue: 1,
+        friction: 7,
+        tension: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [modalOpacity, modalScale]);
+
+  const closeCover = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(modalOpacity, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(modalScale, {
+        toValue: 0.96,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setCoverVisible(false));
+  }, [modalOpacity, modalScale]);
+
+  const handlePressIn = useCallback((scaleRef) => {
+    Animated.spring(scaleRef, {
+      toValue: 0.97,
+      friction: 7,
+      tension: 160,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const handlePressOut = useCallback((scaleRef) => {
+    Animated.spring(scaleRef, {
+      toValue: 1,
+      friction: 6,
+      tension: 160,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
   const isLandscape = width > height;
@@ -33,20 +148,25 @@ export default function LibroDetalleScreen({ route, navigation }) {
   return (
     <View style={[styles.container, isLandscape && styles.containerRow]}>
       {/* Portada: fija arriba (portrait) o lateral izquierda (landscape) */}
-      <View
+      <TouchableOpacity
         style={
           isLandscape
             ? styles.coverContainerLandscape
             : [styles.coverContainer, { height: coverHeight }]
         }
+        activeOpacity={0.9}
+        onPress={openCover}
       >
-        <Image
+        <Animated.Image
           source={{ uri: libro.portada }}
-          style={styles.coverImage}
+          style={[styles.coverImage, { opacity: coverFade }]}
           resizeMode="cover"
         />
         <View style={styles.coverOverlay} />
-      </View>
+        <View style={styles.coverHint}>
+          <Text style={styles.coverHintText}>Toca para ver portada completa</Text>
+        </View>
+      </TouchableOpacity>
 
       {/* Contenido scrolleable */}
       <ScrollView
@@ -58,11 +178,60 @@ export default function LibroDetalleScreen({ route, navigation }) {
         showsVerticalScrollIndicator={false}
       >
         {/* Título y autor */}
-        <Text style={styles.titulo}>{libro.titulo}</Text>
-        <Text style={styles.autor}>{libro.autor}</Text>
+        <Animated.Text
+          style={[
+            styles.titulo,
+            {
+              opacity: contentAnim,
+              transform: [
+                {
+                  translateY: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [10, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          {libro.titulo}
+        </Animated.Text>
+        <Animated.Text
+          style={[
+            styles.autor,
+            {
+              opacity: contentAnim,
+              transform: [
+                {
+                  translateY: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [12, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          {libro.autor}
+        </Animated.Text>
 
         {/* Badges de metadatos */}
-        <View style={styles.metaRow}>
+        <Animated.View
+          style={[
+            styles.metaRow,
+            {
+              opacity: contentAnim,
+              transform: [
+                {
+                  translateY: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [12, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{libro.genero}</Text>
           </View>
@@ -76,34 +245,120 @@ export default function LibroDetalleScreen({ route, navigation }) {
               {libro.paginas} págs.
             </Text>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Divider */}
         <View style={styles.divider} />
 
         {/* Sinopsis */}
-        <Text style={styles.sectionTitle}>Sinopsis</Text>
-        <Text style={styles.sinopsis}>{libro.sinopsis}</Text>
+        <Animated.Text
+          style={[
+            styles.sectionTitle,
+            {
+              opacity: contentAnim,
+              transform: [
+                {
+                  translateY: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [8, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          Sinopsis
+        </Animated.Text>
+        <Animated.Text
+          style={[
+            styles.sinopsis,
+            {
+              opacity: contentAnim,
+              transform: [
+                {
+                  translateY: contentAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [12, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          {libro.sinopsis}
+        </Animated.Text>
 
         {/* Botones */}
         <View style={styles.buttonsContainer}>
-          <TouchableOpacity
-            style={styles.btnPrimary}
-            onPress={handleEditar}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.btnPrimaryText}>✏️  Editar libro</Text>
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: editScale }] }}>
+            <TouchableOpacity
+              style={styles.btnPrimary}
+              onPress={handleEditar}
+              onPressIn={() => handlePressIn(editScale)}
+              onPressOut={() => handlePressOut(editScale)}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.btnPrimaryText}>✏️  Editar libro</Text>
+            </TouchableOpacity>
+          </Animated.View>
 
-          <TouchableOpacity
-            style={styles.btnSecondary}
-            onPress={handleLeer}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.btnSecondaryText}>📖  Leer</Text>
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: readScale }] }}>
+            <TouchableOpacity
+              style={styles.btnSecondary}
+              onPress={handleLeer}
+              onPressIn={() => handlePressIn(readScale)}
+              onPressOut={() => handlePressOut(readScale)}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.btnSecondaryText}>📖  Leer</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </ScrollView>
+
+      <Modal transparent visible={coverVisible} animationType="none">
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={closeCover}
+        >
+          <Animated.View
+            style={[
+              styles.modalContent,
+              {
+                opacity: modalOpacity,
+                transform: [{ scale: modalScale }],
+              },
+            ]}
+          >
+            <Image
+              source={{ uri: libro.portada }}
+              style={styles.modalImage}
+              resizeMode="contain"
+            />
+          </Animated.View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal transparent visible={noticeVisible} animationType="none">
+        <View style={styles.noticeBackdrop}>
+          <Animated.View
+            style={[
+              styles.noticeCard,
+              {
+                opacity: noticeOpacity,
+                transform: [{ scale: noticeScale }],
+              },
+            ]}
+          >
+            <Text style={styles.noticeEmoji}>✨📖</Text>
+            <Text style={styles.noticeTitle}>Próximamente</Text>
+            <Text style={styles.noticeText}>
+              Estamos preparando esta función para ti
+            </Text>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -132,7 +387,21 @@ const styles = StyleSheet.create({
   },
   coverOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(26,26,46,0.18)',
+    backgroundColor: 'rgba(26,26,46,0.12)',
+  },
+  coverHint: {
+    position: 'absolute',
+    right: 12,
+    bottom: 12,
+    backgroundColor: 'rgba(17,24,39,0.65)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  coverHintText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '600',
   },
   // Scroll
   scroll: {
@@ -183,7 +452,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: '#e5e7eb',
-    marginBottom: 20,
+    marginBottom: 22,
   },
   sectionTitle: {
     fontSize: 14,
@@ -197,11 +466,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#374151',
     lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: 34,
   },
   // Botones
   buttonsContainer: {
-    gap: 12,
+    gap: 14,
+    marginBottom: 8,
   },
   btnPrimary: {
     backgroundColor: '#4f46e5',
@@ -236,5 +506,57 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    height: '80%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+  },
+  modalImage: {
+    width: '100%',
+    height: '100%',
+  },
+  noticeBackdrop: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 180,
+  },
+  noticeCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e6e8f2',
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  noticeEmoji: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  noticeTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#4f46e5',
+  },
+  noticeText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
   },
 });
