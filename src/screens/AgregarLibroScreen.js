@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   useWindowDimensions,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  Modal,
 } from 'react-native';
 
 const EMPTY_FORM = {
@@ -29,6 +31,17 @@ export default function AgregarLibroScreen({ route, navigation }) {
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [busqueda, setBusqueda] = useState('');
+  const [noticeVisible, setNoticeVisible] = useState(false);
+  const [noticeConfig, setNoticeConfig] = useState({
+    title: '',
+    message: '',
+    emoji: '',
+    variant: 'info',
+  });
+  const noticeTimer = useRef(null);
+  const submitTimer = useRef(null);
+  const noticeOpacity = useRef(new Animated.Value(0)).current;
+  const noticeScale = useRef(new Animated.Value(0.96)).current;
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
 
@@ -49,21 +62,79 @@ export default function AgregarLibroScreen({ route, navigation }) {
     }
   }, [modoEdicion, libroRecibido, navigation]);
 
+  useEffect(() => {
+    return () => {
+      if (noticeTimer.current) {
+        clearTimeout(noticeTimer.current);
+      }
+      if (submitTimer.current) {
+        clearTimeout(submitTimer.current);
+      }
+    };
+  }, []);
+
   const handleChange = useCallback((field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   }, []);
 
+  const showNotice = useCallback((config) => {
+    setNoticeConfig(config);
+    setNoticeVisible(true);
+    noticeOpacity.setValue(0);
+    noticeScale.setValue(0.96);
+    Animated.parallel([
+      Animated.timing(noticeOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(noticeScale, {
+        toValue: 1,
+        friction: 7,
+        tension: 140,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    if (noticeTimer.current) {
+      clearTimeout(noticeTimer.current);
+    }
+    const durationMs = config.durationMs ?? 2600;
+    noticeTimer.current = setTimeout(() => {
+      Animated.timing(noticeOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start(() => setNoticeVisible(false));
+    }, durationMs);
+  }, [noticeOpacity, noticeScale]);
+
   const handleBuscar = useCallback(() => {
-    Alert.alert('Próximamente', 'Búsqueda con Google Books próximamente');
-  }, []);
+    showNotice({
+      title: 'Próximamente',
+      message: 'Búsqueda con Google Books en camino',
+      emoji: '🔍✨',
+      variant: 'info',
+    });
+  }, [showNotice]);
 
   const handleDesdeArchivo = useCallback(() => {
-    Alert.alert('Próximamente', 'Importar desde archivo próximamente');
-  }, []);
+    showNotice({
+      title: 'Próximamente',
+      message: 'Estamos preparando la importación de archivos',
+      emoji: '📂✨',
+      variant: 'info',
+    });
+  }, [showNotice]);
 
   const handleSubmit = useCallback(() => {
     if (!form.titulo.trim() || !form.autor.trim()) {
-      Alert.alert('Campos requeridos', 'El título y el autor son obligatorios.');
+      showNotice({
+        title: 'Campos requeridos',
+        message: 'Completa título y autor para continuar',
+        emoji: '⚠️',
+        variant: 'warning',
+      });
       return;
     }
 
@@ -71,10 +142,21 @@ export default function AgregarLibroScreen({ route, navigation }) {
       ? `Los cambios de "${form.titulo}" fueron guardados correctamente.`
       : `"${form.titulo}" fue agregado a tu biblioteca.`;
 
-    Alert.alert(modoEdicion ? 'Cambios guardados' : 'Libro agregado', mensaje, [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
-  }, [form, modoEdicion, navigation]);
+    showNotice({
+      title: modoEdicion ? 'Cambios guardados' : 'Libro agregado',
+      message: mensaje,
+      emoji: modoEdicion ? '💾✅' : '✅📚',
+      variant: 'success',
+      durationMs: 1700,
+    });
+
+    if (submitTimer.current) {
+      clearTimeout(submitTimer.current);
+    }
+    submitTimer.current = setTimeout(() => {
+      navigation.goBack();
+    }, 1900);
+  }, [form, modoEdicion, navigation, showNotice]);
 
   const hPad = isLandscape ? width * 0.12 : width * 0.05;
 
@@ -189,6 +271,25 @@ export default function AgregarLibroScreen({ route, navigation }) {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal transparent visible={noticeVisible} animationType="none">
+        <View style={styles.noticeBackdrop}>
+          <Animated.View
+            style={[
+              styles.noticeCard,
+              styles[`noticeCard_${noticeConfig.variant}`],
+              {
+                opacity: noticeOpacity,
+                transform: [{ scale: noticeScale }],
+              },
+            ]}
+          >
+            <Text style={styles.noticeEmoji}>{noticeConfig.emoji}</Text>
+            <Text style={styles.noticeTitle}>{noticeConfig.title}</Text>
+            <Text style={styles.noticeText}>{noticeConfig.message}</Text>
+          </Animated.View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -320,5 +421,49 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontSize: 15,
     fontWeight: '600',
+  },
+  noticeBackdrop: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  noticeCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    width: '94%',
+    paddingHorizontal: 22,
+    paddingVertical: 22,
+    alignItems: 'center',
+    borderWidth: 1,
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  noticeCard_info: {
+    borderColor: '#e6e8f2',
+  },
+  noticeCard_success: {
+    borderColor: '#c7f5d9',
+  },
+  noticeCard_warning: {
+    borderColor: '#fde5b1',
+  },
+  noticeEmoji: {
+    fontSize: 28,
+    marginBottom: 6,
+  },
+  noticeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4f46e5',
+  },
+  noticeText: {
+    fontSize: 15,
+    color: '#6b7280',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
