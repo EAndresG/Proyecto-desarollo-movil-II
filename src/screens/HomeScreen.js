@@ -8,6 +8,7 @@ import {
   StyleSheet,
   useWindowDimensions,
   StatusBar,
+  Animated,
 } from 'react-native';
 import BookCard from '../components/BookCard';
 
@@ -93,9 +94,35 @@ const LIBROS = [
 
 export default function HomeScreen({ navigation }) {
   const [query, setQuery] = useState('');
+  const [fabPressed, setFabPressed] = useState(false);
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const numColumns = isLandscape ? 2 : 1;
+
+  const headerAnim = React.useRef(new Animated.Value(0)).current;
+  const searchAnim = React.useRef(new Animated.Value(0)).current;
+  const listAnim = React.useRef(new Animated.Value(0)).current;
+  const fabScale = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    Animated.sequence([
+      Animated.timing(headerAnim, {
+        toValue: 1,
+        duration: 420,
+        useNativeDriver: true,
+      }),
+      Animated.timing(searchAnim, {
+        toValue: 1,
+        duration: 320,
+        useNativeDriver: true,
+      }),
+      Animated.timing(listAnim, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [headerAnim, searchAnim, listAnim]);
 
   const librosFiltrados = useMemo(() => {
     const texto = query.toLowerCase().trim();
@@ -118,6 +145,26 @@ export default function HomeScreen({ navigation }) {
     navigation.navigate('AgregarLibro');
   }, [navigation]);
 
+  const handleFabPressIn = useCallback(() => {
+    setFabPressed(true);
+    Animated.spring(fabScale, {
+      toValue: 0.96,
+      friction: 7,
+      tension: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [fabScale]);
+
+  const handleFabPressOut = useCallback(() => {
+    setFabPressed(false);
+    Animated.spring(fabScale, {
+      toValue: 1,
+      friction: 6,
+      tension: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [fabScale]);
+
   const renderItem = useCallback(
     ({ item }) => (
       <BookCard book={item} onPress={() => handlePressLibro(item)} />
@@ -130,15 +177,47 @@ export default function HomeScreen({ navigation }) {
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9ff" />
 
       {/* Header */}
-      <View style={[styles.header, { paddingHorizontal: width * 0.05 }]}>
+      <Animated.View
+        style={[
+          styles.header,
+          { paddingHorizontal: width * 0.05 },
+          {
+            opacity: headerAnim,
+            transform: [
+              {
+                translateY: headerAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [10, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <Text style={styles.headerTitle}>Mi Biblioteca</Text>
         <Text style={styles.headerSubtitle}>
           {librosFiltrados.length} libro{librosFiltrados.length !== 1 ? 's' : ''}
         </Text>
-      </View>
+      </Animated.View>
 
       {/* Barra de búsqueda */}
-      <View style={[styles.searchContainer, { marginHorizontal: width * 0.04 }]}>
+      <Animated.View
+        style={[
+          styles.searchContainer,
+          { marginHorizontal: width * 0.04 },
+          {
+            opacity: searchAnim,
+            transform: [
+              {
+                translateY: searchAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [10, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
           style={styles.searchInput}
@@ -149,35 +228,59 @@ export default function HomeScreen({ navigation }) {
           clearButtonMode="while-editing"
           returnKeyType="search"
         />
-      </View>
+      </Animated.View>
 
       {/* Lista de libros */}
-      <FlatList
-        data={librosFiltrados}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        key={numColumns}
-        numColumns={numColumns}
-        removeClippedSubviews={true}
-        initialNumToRender={5}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📚</Text>
-            <Text style={styles.emptyText}>No se encontraron libros</Text>
-          </View>
-        }
-        showsVerticalScrollIndicator={false}
-      />
+      <Animated.View
+        style={{
+          flex: 1,
+          opacity: listAnim,
+          transform: [
+            {
+              translateY: listAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [12, 0],
+              }),
+            },
+          ],
+        }}
+      >
+        <FlatList
+          data={librosFiltrados}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          key={numColumns}
+          numColumns={numColumns}
+          removeClippedSubviews={true}
+          initialNumToRender={5}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyIcon}>📚</Text>
+              <Text style={styles.emptyText}>No se encontraron libros</Text>
+              {!!query.trim() && (
+                <Text style={styles.emptyHint}>
+                  No hay resultados para "{query.trim()}"
+                </Text>
+              )}
+            </View>
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      </Animated.View>
 
       {/* Botón flotante "+" */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={handleAgregar}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
+      <Animated.View style={[styles.fab, { transform: [{ scale: fabScale }] }]}>
+        <TouchableOpacity
+          style={[styles.fabTouch, fabPressed && styles.fabPressed]}
+          onPress={handleAgregar}
+          onPressIn={handleFabPressIn}
+          onPressOut={handleFabPressOut}
+          activeOpacity={1}
+        >
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
@@ -189,7 +292,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 20,
-    paddingBottom: 12,
+    paddingBottom: 10,
     backgroundColor: '#f8f9ff',
   },
   headerTitle: {
@@ -199,8 +302,8 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#888',
-    marginTop: 2,
+    color: '#6b7280',
+    marginTop: 3,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -209,7 +312,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    marginBottom: 12,
+    marginBottom: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07,
@@ -226,7 +329,7 @@ const styles = StyleSheet.create({
     color: '#1a1a2e',
   },
   listContent: {
-    paddingTop: 4,
+    paddingTop: 6,
     paddingBottom: 100,
   },
   emptyContainer: {
@@ -239,7 +342,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#aaa',
+    color: '#6b7280',
+  },
+  emptyHint: {
+    fontSize: 13,
+    color: '#8b91a1',
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
   fab: {
     position: 'absolute',
@@ -249,13 +358,20 @@ const styles = StyleSheet.create({
     height: 58,
     borderRadius: 29,
     backgroundColor: '#4f46e5',
-    alignItems: 'center',
-    justifyContent: 'center',
     shadowColor: '#4f46e5',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.40,
     shadowRadius: 10,
     elevation: 8,
+  },
+  fabTouch: {
+    flex: 1,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fabPressed: {
+    backgroundColor: '#4338ca',
   },
   fabIcon: {
     fontSize: 30,
