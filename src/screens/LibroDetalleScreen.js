@@ -534,8 +534,9 @@ const styles = StyleSheet.create({
   noticeCard: {
     backgroundColor: '#ffffff',
     borderRadius: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
+    width: '92%',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e6e8f2',
@@ -546,17 +547,18 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   noticeEmoji: {
-    fontSize: 20,
-    marginBottom: 4,
+    fontSize: 24,
+    marginBottom: 5,
   },
   noticeTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     color: '#4f46e5',
   },
   noticeText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6b7280',
-    marginTop: 4,
+    marginTop: 6,
+    textAlign: 'center',
   },
 });
