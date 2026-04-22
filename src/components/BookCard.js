@@ -12,12 +12,22 @@ const BookCard = React.memo(({ book, onPress }) => {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const cardWidth = isLandscape ? (width / 2) - 24 : width - 32;
+  const isImported = Boolean(book.rutaArchivo);
+  const metaParts = [];
+
+  if (book.anio) {
+    metaParts.push(book.anio);
+  }
+  if (book.paginas) {
+    metaParts.push(`${book.paginas} págs.`);
+  }
+  const metaText = metaParts.length > 0 ? metaParts.join(' · ') : 'Sin datos';
 
   return (
     <TouchableOpacity
       style={[styles.card, { width: cardWidth }]}
       onPress={onPress}
-      activeOpacity={0.85}
+      activeOpacity={0.85}  
     >
       <Image
         source={{ uri: book.portada }}
@@ -31,10 +41,19 @@ const BookCard = React.memo(({ book, onPress }) => {
         <Text style={styles.author} numberOfLines={1}>
           {book.autor}
         </Text>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{book.genero}</Text>
+        <View style={styles.badgeRow}>
+          {!!book.genero && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{book.genero}</Text>
+            </View>
+          )}
+          {isImported && (
+            <View style={styles.importBadge}>
+              <Text style={styles.importBadgeText}>📎 Importado</Text>
+            </View>
+          )}
         </View>
-        <Text style={styles.meta}>{book.anio} · {book.paginas} págs.</Text>
+        <Text style={styles.meta}>{metaText}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -92,6 +111,25 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     color: '#4f46e5',
+    fontWeight: '600',
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  importBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ecfdf3',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  importBadgeText: {
+    fontSize: 11,
+    color: '#16a34a',
     fontWeight: '600',
   },
   meta: {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import * as DocumentPicker from 'expo-document-picker';
 import {
   View,
   Text,
@@ -6,13 +7,13 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   useWindowDimensions,
   KeyboardAvoidingView,
   Platform,
   Animated,
   Modal,
 } from 'react-native';
+import { useLibros } from '../context/LibrosContext';
 
 const EMPTY_FORM = {
   titulo: '',
@@ -24,10 +25,14 @@ const EMPTY_FORM = {
   portada: '',
 };
 
+const PLACEHOLDER_PORTADA = 'https://placehold.co/200x300/png?text=Libro';
+const VALID_EXTENSIONS = ['pdf', 'epub'];
+
 export default function AgregarLibroScreen({ route, navigation }) {
   const params = route.params ?? {};
   const modoEdicion = params.modoEdicion === true;
   const libroRecibido = params.libro ?? null;
+  const { addLibroFromFile, generateLibroId } = useLibros();
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [busqueda, setBusqueda] = useState('');
@@ -118,14 +123,107 @@ export default function AgregarLibroScreen({ route, navigation }) {
     });
   }, [showNotice]);
 
-  const handleDesdeArchivo = useCallback(() => {
-    showNotice({
-      title: 'Próximamente',
-      message: 'Estamos preparando la importación de archivos',
-      emoji: '📂✨',
-      variant: 'info',
-    });
-  }, [showNotice]);
+  const getFileExtension = useCallback((nameOrUri) => {
+    if (!nameOrUri) return '';
+    const cleaned = nameOrUri.split('?')[0];
+    const parts = cleaned.split('.');
+    return parts.length > 1 ? parts.pop().toLowerCase() : '';
+  }, []);
+
+  const getBaseFileName = useCallback((nameOrUri) => {
+    if (!nameOrUri) return 'Libro importado';
+    const cleaned = nameOrUri.split('?')[0];
+    const name = cleaned.split('/').pop() ?? cleaned;
+    const withoutExt = name.replace(/\.[^/.]+$/, '');
+    return withoutExt.trim() || 'Libro importado';
+  }, []);
+
+  const handleDesdeArchivo = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'application/epub+zip'],
+        copyToCacheDirectory: false,
+        multiple: false,
+      });
+
+      if (result.canceled) {
+        showNotice({
+          title: 'Importación cancelada',
+          message: 'No se seleccionó ningún archivo',
+          emoji: '⚠️',
+          variant: 'warning',
+        });
+        return;
+      }
+
+      const asset = result.assets?.[0];
+      if (!asset) {
+        showNotice({
+          title: 'Archivo no encontrado',
+          message: 'No se pudo leer el archivo seleccionado',
+          emoji: '⚠️',
+          variant: 'warning',
+        });
+        return;
+      }
+
+      const extension = getFileExtension(asset.name || asset.uri);
+      if (!VALID_EXTENSIONS.includes(extension)) {
+        showNotice({
+          title: 'Formato no compatible',
+          message: 'Selecciona un archivo PDF o EPUB',
+          emoji: '📄❌',
+          variant: 'warning',
+        });
+        return;
+      }
+
+      const titulo = getBaseFileName(asset.name || asset.uri);
+      const nuevoLibro = {
+        id: generateLibroId ? generateLibroId() : undefined,
+        titulo,
+        autor: 'Desconocido',
+        genero: '',
+        anio: '',
+        paginas: '',
+        sinopsis: '',
+        portada: PLACEHOLDER_PORTADA,
+        estado: 'Por leer',
+        rutaArchivo: asset.uri,
+      };
+
+      addLibroFromFile(nuevoLibro);
+
+      showNotice({
+        title: 'Libro importado',
+        message: `"${titulo}" fue agregado a tu biblioteca.`,
+        emoji: '📎✅',
+        variant: 'success',
+        durationMs: 1700,
+      });
+
+      if (submitTimer.current) {
+        clearTimeout(submitTimer.current);
+      }
+      submitTimer.current = setTimeout(() => {
+        navigation.goBack();
+      }, 1850);
+    } catch (error) {
+      showNotice({
+        title: 'Error al importar',
+        message: 'No pudimos leer el archivo seleccionado',
+        emoji: '❌',
+        variant: 'warning',
+      });
+    }
+  }, [
+    generateLibroId,
+    getBaseFileName,
+    getFileExtension,
+    navigation,
+    addLibroFromFile,
+    showNotice,
+  ]);
 
   const handleSubmit = useCallback(() => {
     if (!form.titulo.trim() || !form.autor.trim()) {
