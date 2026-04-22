@@ -250,13 +250,8 @@ export default function LectorPDFScreen({ route, navigation }) {
             Página {page} de {pageCount || '—'}
           </Text>
         </View>
-        <View style={styles.zoomGroup}>
-          <TouchableOpacity style={styles.zoomBtn} onPress={handleZoomOut}>
-            <Text style={styles.zoomText}>−</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.zoomBtn} onPress={handleZoomIn}>
-            <Text style={styles.zoomText}>+</Text>
-          </TouchableOpacity>
+        <View style={styles.progressChip}>
+          <Text style={styles.progressText}>{Math.round(progressRatio * 100)}%</Text>
         </View>
       </Animated.View>
 
@@ -305,9 +300,6 @@ export default function LectorPDFScreen({ route, navigation }) {
               returnKeyType="done"
               onSubmitEditing={handleJump}
             />
-            <TouchableOpacity style={styles.jumpBtn} onPress={handleJump}>
-              <Text style={styles.jumpText}>Ir</Text>
-            </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.controlBtn} onPress={handleNext}>
             <Text style={styles.controlText}>▶</Text>
@@ -363,7 +355,7 @@ function buildPdfHtml(base64, initialPage) {
     function renderPage(pageNum) {
       if (!pdfDoc) return;
       pdfDoc.getPage(pageNum).then((page) => {
-        const viewport = page.getViewport({ scale });
+        const viewport = page.getViewport({ scale, rotation: page.rotate });
         canvas.height = viewport.height;
         canvas.width = viewport.width;
         const renderContext = { canvasContext: ctx, viewport };
@@ -373,6 +365,11 @@ function buildPdfHtml(base64, initialPage) {
           type: 'pageChanged',
           page: currentPage,
         }));
+        setTimeout(() => {
+          if (currentPage === pageNum) {
+            page.render(renderContext);
+          }
+        }, 30);
       });
     }
 
@@ -389,6 +386,24 @@ function buildPdfHtml(base64, initialPage) {
 
     window.setPage = setPage;
     window.setScale = setScale;
+
+    let touchStartX = null;
+    document.addEventListener('touchstart', (evt) => {
+      touchStartX = evt.touches?.[0]?.clientX ?? null;
+    });
+    document.addEventListener('touchend', (evt) => {
+      if (touchStartX === null) return;
+      const endX = evt.changedTouches?.[0]?.clientX ?? touchStartX;
+      const delta = endX - touchStartX;
+      if (Math.abs(delta) > 40) {
+        if (delta < 0) {
+          setPage(currentPage + 1);
+        } else {
+          setPage(currentPage - 1);
+        }
+      }
+      touchStartX = null;
+    });
 
     const pdfUrl = "data:application/pdf;base64," + pdfData;
     pdfjsLib.getDocument(pdfUrl).promise.then((doc) => {
@@ -452,6 +467,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#4f46e5',
     fontWeight: '700',
+    lineHeight: 18,
   },
   topTitleWrap: {
     flex: 1,
@@ -466,22 +482,18 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 2,
   },
-  zoomGroup: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  zoomBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: '#f3f4f6',
+  progressChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#eef2ff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  zoomText: {
-    fontSize: 16,
+  progressText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: '#374151',
+    color: '#4f46e5',
   },
   readerWrapper: {
     flex: 1,
@@ -565,17 +577,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     color: '#1a1a2e',
-  },
-  jumpBtn: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  jumpText: {
-    fontSize: 12,
-    color: '#ffffff',
-    fontWeight: '700',
   },
   sliderTrack: {
     height: 12,
