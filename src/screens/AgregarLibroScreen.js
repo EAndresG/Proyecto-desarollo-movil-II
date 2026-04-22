@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import {
   View,
   Text,
@@ -219,6 +220,18 @@ export default function AgregarLibroScreen({ route, navigation }) {
     return withoutExt.trim() || 'Libro importado';
   }, []);
 
+  const ensureFileUri = useCallback(async (asset) => {
+    if (!asset?.uri) return '';
+    if (asset.uri.startsWith('file://')) return asset.uri;
+
+    const extension = getFileExtension(asset.name || asset.uri) || 'pdf';
+    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${extension}`;
+    const targetUri = `${FileSystem.cacheDirectory}${safeName}`;
+
+    await FileSystem.copyAsync({ from: asset.uri, to: targetUri });
+    return targetUri;
+  }, [getFileExtension]);
+
   const handleDesdeArchivo = useCallback(async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -260,9 +273,19 @@ export default function AgregarLibroScreen({ route, navigation }) {
       }
 
       const titulo = getBaseFileName(asset.name || asset.uri);
+      const fileUri = await ensureFileUri(asset);
+      if (!fileUri) {
+        showNotice({
+          title: 'Error al cargar',
+          message: 'No se pudo copiar el archivo seleccionado',
+          emoji: '❌',
+          variant: 'warning',
+        });
+        return;
+      }
 
       setArchivoInfo({
-        uri: asset.uri,
+        uri: fileUri,
         nombre: asset.name || titulo,
         extension,
         paginas: '',

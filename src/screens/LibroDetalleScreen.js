@@ -75,34 +75,39 @@ export default function LibroDetalleScreen({ route, navigation }) {
   }, [navigation, libro]);
 
   const handleLeer = useCallback(() => {
-    setNoticeVisible(true);
-    noticeOpacity.setValue(0);
-    noticeScale.setValue(0.96);
-    Animated.parallel([
-      Animated.timing(noticeOpacity, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.spring(noticeScale, {
-        toValue: 1,
-        friction: 7,
-        tension: 140,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    if (!libro?.rutaArchivo) {
+      setNoticeVisible(true);
+      noticeOpacity.setValue(0);
+      noticeScale.setValue(0.96);
+      Animated.parallel([
+        Animated.timing(noticeOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(noticeScale, {
+          toValue: 1,
+          friction: 7,
+          tension: 140,
+          useNativeDriver: true,
+        }),
+      ]).start();
 
-    if (noticeTimer.current) {
-      clearTimeout(noticeTimer.current);
+      if (noticeTimer.current) {
+        clearTimeout(noticeTimer.current);
+      }
+      noticeTimer.current = setTimeout(() => {
+        Animated.timing(noticeOpacity, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }).start(() => setNoticeVisible(false));
+      }, 1600);
+      return;
     }
-    noticeTimer.current = setTimeout(() => {
-      Animated.timing(noticeOpacity, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true,
-      }).start(() => setNoticeVisible(false));
-    }, 1600);
-  }, []);
+
+    navigation.navigate('LectorPDF', { libroId: libro.id });
+  }, [libro, navigation, noticeOpacity, noticeScale]);
 
   const openCover = useCallback(() => {
     setCoverVisible(true);
@@ -370,9 +375,9 @@ export default function LibroDetalleScreen({ route, navigation }) {
             ]}
           >
             <Text style={styles.noticeEmoji}>✨📖</Text>
-            <Text style={styles.noticeTitle}>Próximamente</Text>
+            <Text style={styles.noticeTitle}>Sin archivo</Text>
             <Text style={styles.noticeText}>
-              Estamos preparando esta función para ti
+              Este libro no tiene un PDF o EPUB asociado
             </Text>
           </Animated.View>
         </View>

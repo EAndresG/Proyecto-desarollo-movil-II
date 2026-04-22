@@ -84,6 +84,7 @@ const LibrosContext = createContext(null);
 
 export function LibrosProvider({ children }) {
   const [libros, setLibros] = useState(() => INITIAL_LIBROS);
+  const [lastPageById, setLastPageById] = useState({});
 
   const generateLibroId = useCallback(() => {
     const randomSuffix = Math.random().toString(36).slice(2, 7);
@@ -116,13 +117,31 @@ export function LibrosProvider({ children }) {
     )));
   }, []);
 
+  const setLastPage = useCallback((libroId, page) => {
+    if (!libroId || !page) return;
+    setLastPageById((prev) => ({
+      ...prev,
+      [libroId]: page,
+    }));
+  }, []);
+
   const value = useMemo(() => ({
     libros,
     addLibroFromFile,
     addLibro,
     updateLibro,
+    lastPageById,
+    setLastPage,
     generateLibroId,
-  }), [libros, addLibroFromFile, addLibro, updateLibro, generateLibroId]);
+  }), [
+    libros,
+    addLibroFromFile,
+    addLibro,
+    updateLibro,
+    lastPageById,
+    setLastPage,
+    generateLibroId,
+  ]);
 
   return (
     <LibrosContext.Provider value={value}>
