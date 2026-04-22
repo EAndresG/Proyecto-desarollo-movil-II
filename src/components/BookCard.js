@@ -12,7 +12,6 @@ const BookCard = React.memo(({ book, onPress }) => {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const cardWidth = isLandscape ? (width / 2) - 24 : width - 32;
-  const isImported = Boolean(book.rutaArchivo);
   const metaParts = [];
 
   if (book.anio) {
@@ -45,11 +44,6 @@ const BookCard = React.memo(({ book, onPress }) => {
           {!!book.genero && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{book.genero}</Text>
-            </View>
-          )}
-          {isImported && (
-            <View style={styles.importBadge}>
-              <Text style={styles.importBadgeText}>📎 Importado</Text>
             </View>
           )}
         </View>
@@ -119,18 +113,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
     marginTop: 4,
-  },
-  importBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#ecfdf3',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  importBadgeText: {
-    fontSize: 11,
-    color: '#16a34a',
-    fontWeight: '600',
   },
   meta: {
     fontSize: 12,

@@ -59,7 +59,7 @@ export default function HomeScreen({ navigation }) {
 
   const handlePressLibro = useCallback(
     (libro) => {
-      navigation.navigate('LibroDetalle', { libro });
+      navigation.navigate('LibroDetalle', { libroId: libro.id });
     },
     [navigation]
   );

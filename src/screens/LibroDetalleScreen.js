@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,19 @@ import {
   Animated,
   Modal,
 } from 'react-native';
+import { useLibros } from '../context/LibrosContext';
+
+const PLACEHOLDER_PORTADA = 'https://placehold.co/200x300/png?text=Libro';
 
 export default function LibroDetalleScreen({ route, navigation }) {
-  const { libro } = route.params;
+  const { libroId, libro: libroParam } = route.params ?? {};
+  const { libros } = useLibros();
+  const libro = useMemo(() => {
+    if (libroId) {
+      return libros.find((item) => item.id === libroId) ?? libroParam;
+    }
+    return libroParam;
+  }, [libroId, libroParam, libros]);
   const { width, height } = useWindowDimensions();
   const [coverVisible, setCoverVisible] = useState(false);
   const [noticeVisible, setNoticeVisible] = useState(false);
@@ -29,8 +39,10 @@ export default function LibroDetalleScreen({ route, navigation }) {
 
   // Poner el título del libro en el header
   useEffect(() => {
-    navigation.setOptions({ title: libro.titulo });
-  }, [navigation, libro.titulo]);
+    if (libro?.titulo) {
+      navigation.setOptions({ title: libro.titulo });
+    }
+  }, [navigation, libro?.titulo]);
 
   useEffect(() => {
     Animated.parallel([
@@ -57,7 +69,9 @@ export default function LibroDetalleScreen({ route, navigation }) {
 
 
   const handleEditar = useCallback(() => {
-    navigation.navigate('AgregarLibro', { libro, modoEdicion: true });
+    if (libro) {
+      navigation.navigate('AgregarLibro', { libroId: libro.id, modoEdicion: true });
+    }
   }, [navigation, libro]);
 
   const handleLeer = useCallback(() => {
@@ -144,6 +158,10 @@ export default function LibroDetalleScreen({ route, navigation }) {
 
   const isLandscape = width > height;
   const coverHeight = height * 0.38;
+  const portadaUri = libro?.portada || PLACEHOLDER_PORTADA;
+  const generoTexto = libro?.genero || 'Sin género';
+  const anioTexto = libro?.anio || 'Sin año';
+  const paginasTexto = libro?.paginas ? `${libro.paginas} págs.` : 'Sin páginas';
 
   return (
     <View style={[styles.container, isLandscape && styles.containerRow]}>
@@ -158,7 +176,7 @@ export default function LibroDetalleScreen({ route, navigation }) {
         onPress={openCover}
       >
         <Animated.Image
-          source={{ uri: libro.portada }}
+          source={{ uri: portadaUri }}
           style={[styles.coverImage, { opacity: coverFade }]}
           resizeMode="cover"
         />
@@ -194,7 +212,7 @@ export default function LibroDetalleScreen({ route, navigation }) {
             },
           ]}
         >
-          {libro.titulo}
+          {libro?.titulo ?? 'Libro'}
         </Animated.Text>
         <Animated.Text
           style={[
@@ -212,7 +230,7 @@ export default function LibroDetalleScreen({ route, navigation }) {
             },
           ]}
         >
-          {libro.autor}
+          {libro?.autor ?? 'Autor desconocido'}
         </Animated.Text>
 
         {/* Badges de metadatos */}
@@ -233,16 +251,16 @@ export default function LibroDetalleScreen({ route, navigation }) {
           ]}
         >
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>{libro.genero}</Text>
+            <Text style={styles.badgeText}>{generoTexto}</Text>
           </View>
           <View style={[styles.badge, styles.badgeSecondary]}>
             <Text style={[styles.badgeText, styles.badgeTextSecondary]}>
-              {libro.anio}
+              {anioTexto}
             </Text>
           </View>
           <View style={[styles.badge, styles.badgeSecondary]}>
             <Text style={[styles.badgeText, styles.badgeTextSecondary]}>
-              {libro.paginas} págs.
+              {paginasTexto}
             </Text>
           </View>
         </Animated.View>
@@ -285,7 +303,7 @@ export default function LibroDetalleScreen({ route, navigation }) {
             },
           ]}
         >
-          {libro.sinopsis}
+          {libro?.sinopsis || 'Sin sinopsis disponible.'}
         </Animated.Text>
 
         {/* Botones */}
@@ -332,7 +350,7 @@ export default function LibroDetalleScreen({ route, navigation }) {
             ]}
           >
             <Image
-              source={{ uri: libro.portada }}
+              source={{ uri: portadaUri }}
               style={styles.modalImage}
               resizeMode="contain"
             />

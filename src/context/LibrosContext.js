@@ -100,11 +100,29 @@ export function LibrosProvider({ children }) {
     ]);
   }, [generateLibroId]);
 
+  const addLibro = useCallback((nuevoLibro) => {
+    setLibros((prev) => [
+      {
+        ...nuevoLibro,
+        id: nuevoLibro.id ?? generateLibroId(),
+      },
+      ...prev,
+    ]);
+  }, [generateLibroId]);
+
+  const updateLibro = useCallback((libroActualizado) => {
+    setLibros((prev) => prev.map((libro) => (
+      libro.id === libroActualizado.id ? { ...libro, ...libroActualizado } : libro
+    )));
+  }, []);
+
   const value = useMemo(() => ({
     libros,
     addLibroFromFile,
+    addLibro,
+    updateLibro,
     generateLibroId,
-  }), [libros, addLibroFromFile, generateLibroId]);
+  }), [libros, addLibroFromFile, addLibro, updateLibro, generateLibroId]);
 
   return (
     <LibrosContext.Provider value={value}>

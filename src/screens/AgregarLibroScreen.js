@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import {
   View,
   Text,
@@ -32,10 +33,12 @@ export default function AgregarLibroScreen({ route, navigation }) {
   const params = route.params ?? {};
   const modoEdicion = params.modoEdicion === true;
   const libroRecibido = params.libro ?? null;
-  const { addLibroFromFile, generateLibroId } = useLibros();
+  const libroIdRecibido = params.libroId ?? null;
+  const { libros, addLibro, updateLibro, generateLibroId } = useLibros();
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [busqueda, setBusqueda] = useState('');
+  const [archivoInfo, setArchivoInfo] = useState(null);
   const [noticeVisible, setNoticeVisible] = useState(false);
   const [noticeConfig, setNoticeConfig] = useState({
     title: '',
@@ -50,22 +53,37 @@ export default function AgregarLibroScreen({ route, navigation }) {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
 
+  const libroActual = useMemo(() => {
+    if (libroIdRecibido) {
+      return libros.find((item) => item.id === libroIdRecibido) ?? libroRecibido;
+    }
+    return libroRecibido;
+  }, [libroIdRecibido, libroRecibido, libros]);
+
   // Cargar datos si estamos en modo edición
   useEffect(() => {
     navigation.setOptions({ title: modoEdicion ? 'Editar Libro' : 'Agregar Libro' });
 
-    if (modoEdicion && libroRecibido) {
+    if (modoEdicion && libroActual) {
       setForm({
-        titulo: libroRecibido.titulo ?? '',
-        autor: libroRecibido.autor ?? '',
-        genero: libroRecibido.genero ?? '',
-        anio: String(libroRecibido.anio ?? ''),
-        paginas: String(libroRecibido.paginas ?? ''),
-        sinopsis: libroRecibido.sinopsis ?? '',
-        portada: libroRecibido.portada ?? '',
+        titulo: libroActual.titulo ?? '',
+        autor: libroActual.autor ?? '',
+        genero: libroActual.genero ?? '',
+        anio: String(libroActual.anio ?? ''),
+        paginas: String(libroActual.paginas ?? ''),
+        sinopsis: libroActual.sinopsis ?? '',
+        portada: libroActual.portada ?? '',
       });
+      if (libroActual.rutaArchivo) {
+        setArchivoInfo({
+          uri: libroActual.rutaArchivo,
+          nombre: libroActual.titulo ?? 'Archivo cargado',
+          extension: getFileExtension(libroActual.rutaArchivo),
+          paginas: libroActual.paginas ?? '',
+        });
+      }
     }
-  }, [modoEdicion, libroRecibido, navigation]);
+  }, [getFileExtension, modoEdicion, libroActual, navigation]);
 
   useEffect(() => {
     return () => {
@@ -123,6 +141,69 @@ export default function AgregarLibroScreen({ route, navigation }) {
     });
   }, [showNotice]);
 
+  const requestGalleryPermission = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    return status === 'granted';
+  }, []);
+
+  const handleSubirPortada = useCallback(async () => {
+    try {
+      const hasPermission = await requestGalleryPermission();
+      if (!hasPermission) {
+        showNotice({
+          title: 'Permiso requerido',
+          message: 'Autoriza el acceso a tu galeria para elegir una portada',
+          emoji: '🖼️',
+          variant: 'warning',
+        });
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.85,
+      });
+
+      if (result.canceled) {
+        showNotice({
+          title: 'Sin cambios',
+          message: 'No se selecciono ninguna portada',
+          emoji: '⚠️',
+          variant: 'warning',
+        });
+        return;
+      }
+
+      const asset = result.assets?.[0];
+      if (!asset?.uri) {
+        showNotice({
+          title: 'Error al cargar',
+          message: 'No se pudo leer la imagen seleccionada',
+          emoji: '❌',
+          variant: 'warning',
+        });
+        return;
+      }
+
+      setForm((prev) => ({ ...prev, portada: asset.uri }));
+      showNotice({
+        title: 'Portada lista',
+        message: 'Imagen agregada correctamente',
+        emoji: '🖼️✅',
+        variant: 'success',
+        durationMs: 1400,
+      });
+    } catch (error) {
+      showNotice({
+        title: 'Error al cargar',
+        message: 'No se pudo abrir tu galeria',
+        emoji: '❌',
+        variant: 'warning',
+      });
+    }
+  }, [requestGalleryPermission, showNotice]);
+
   const getFileExtension = useCallback((nameOrUri) => {
     if (!nameOrUri) return '';
     const cleaned = nameOrUri.split('?')[0];
@@ -142,7 +223,7 @@ export default function AgregarLibroScreen({ route, navigation }) {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'application/epub+zip'],
-        copyToCacheDirectory: false,
+        copyToCacheDirectory: true,
         multiple: false,
       });
 
@@ -179,35 +260,20 @@ export default function AgregarLibroScreen({ route, navigation }) {
       }
 
       const titulo = getBaseFileName(asset.name || asset.uri);
-      const nuevoLibro = {
-        id: generateLibroId ? generateLibroId() : undefined,
-        titulo,
-        autor: 'Desconocido',
-        genero: '',
-        anio: '',
+
+      setArchivoInfo({
+        uri: asset.uri,
+        nombre: asset.name || titulo,
+        extension,
         paginas: '',
-        sinopsis: '',
-        portada: PLACEHOLDER_PORTADA,
-        estado: 'Por leer',
-        rutaArchivo: asset.uri,
-      };
-
-      addLibroFromFile(nuevoLibro);
-
-      showNotice({
-        title: 'Libro importado',
-        message: `"${titulo}" fue agregado a tu biblioteca.`,
-        emoji: '📎✅',
-        variant: 'success',
-        durationMs: 1700,
       });
-
-      if (submitTimer.current) {
-        clearTimeout(submitTimer.current);
-      }
-      submitTimer.current = setTimeout(() => {
-        navigation.goBack();
-      }, 1850);
+      setForm((prev) => ({
+        ...prev,
+        titulo: prev.titulo.trim() ? prev.titulo : titulo,
+        sinopsis: prev.sinopsis.trim()
+          ? prev.sinopsis
+          : 'Sinopsis pendiente de completar.',
+      }));
     } catch (error) {
       showNotice({
         title: 'Error al importar',
@@ -217,13 +283,21 @@ export default function AgregarLibroScreen({ route, navigation }) {
       });
     }
   }, [
-    generateLibroId,
     getBaseFileName,
     getFileExtension,
-    navigation,
-    addLibroFromFile,
     showNotice,
   ]);
+
+  const handleLimpiarArchivo = useCallback(() => {
+    setArchivoInfo(null);
+  }, []);
+
+  const normalizeNumber = useCallback((value) => {
+    const trimmed = String(value ?? '').trim();
+    if (!trimmed) return '';
+    const parsed = Number.parseInt(trimmed, 10);
+    return Number.isNaN(parsed) ? '' : parsed;
+  }, []);
 
   const handleSubmit = useCallback(() => {
     if (!form.titulo.trim() || !form.autor.trim()) {
@@ -234,6 +308,28 @@ export default function AgregarLibroScreen({ route, navigation }) {
         variant: 'warning',
       });
       return;
+    }
+
+    const libroBase = {
+      id: libroActual?.id || libroIdRecibido,
+      titulo: form.titulo.trim(),
+      autor: form.autor.trim(),
+      genero: form.genero.trim(),
+      anio: normalizeNumber(form.anio),
+      paginas: normalizeNumber(form.paginas),
+      sinopsis: form.sinopsis.trim(),
+      portada: form.portada.trim() || PLACEHOLDER_PORTADA,
+      estado: libroActual?.estado ?? 'Por leer',
+      rutaArchivo: archivoInfo?.uri || libroActual?.rutaArchivo,
+    };
+
+    if (modoEdicion && (libroActual?.id || libroIdRecibido)) {
+      updateLibro(libroBase);
+    } else {
+      addLibro({
+        ...libroBase,
+        id: generateLibroId ? generateLibroId() : undefined,
+      });
     }
 
     const mensaje = modoEdicion
@@ -254,7 +350,19 @@ export default function AgregarLibroScreen({ route, navigation }) {
     submitTimer.current = setTimeout(() => {
       navigation.goBack();
     }, 1900);
-  }, [form, modoEdicion, navigation, showNotice]);
+  }, [
+    addLibro,
+    archivoInfo,
+    form,
+    generateLibroId,
+    libroActual,
+    libroIdRecibido,
+    modoEdicion,
+    navigation,
+    normalizeNumber,
+    showNotice,
+    updateLibro,
+  ]);
 
   const hPad = isLandscape ? width * 0.12 : width * 0.05;
 
@@ -339,15 +447,52 @@ export default function AgregarLibroScreen({ route, navigation }) {
             multiline
             numberOfLines={4}
           />
-          <Field
-            label="URL de portada"
-            value={form.portada}
-            onChangeText={(v) => handleChange('portada', v)}
-            placeholder="https://..."
-            keyboardType="url"
-            autoCapitalize="none"
-          />
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Portada</Text>
+            <View style={styles.coverRow}>
+              <View style={styles.coverPreview}>
+                <Animated.Image
+                  source={{ uri: form.portada || PLACEHOLDER_PORTADA }}
+                  style={styles.coverPreviewImage}
+                  resizeMode="cover"
+                />
+              </View>
+              <TouchableOpacity
+                style={styles.coverBtn}
+                onPress={handleSubirPortada}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.coverBtnText}>➕  Subir portada</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
+
+        {archivoInfo && (
+          <View style={styles.fileCard}>
+            <View style={styles.fileRow}>
+              <View style={styles.fileIconWrap}>
+                <Text style={styles.fileIcon}>📄</Text>
+              </View>
+              <View style={styles.fileInfo}>
+                <Text style={styles.fileName} numberOfLines={1}>
+                  {archivoInfo.nombre}
+                </Text>
+                <Text style={styles.fileMeta}>
+                  {archivoInfo.extension.toUpperCase()}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.fileClearBtn}
+                onPress={handleLimpiarArchivo}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.fileClearText}>Quitar</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.fileHint}>Archivo cargado. Completa los datos y guarda.</Text>
+          </View>
+        )}
 
         {/* ── Botón importar desde archivo ── */}
         <TouchableOpacity
@@ -484,6 +629,96 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+  },
+  coverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  coverPreview: {
+    width: 72,
+    height: 100,
+    borderRadius: 10,
+    backgroundColor: '#f3f4f6',
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+  },
+  coverPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  coverBtn: {
+    flex: 1,
+    backgroundColor: '#eef2ff',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e7ff',
+  },
+  coverBtnText: {
+    fontSize: 14,
+    color: '#4f46e5',
+    fontWeight: '600',
+  },
+  fileCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#e0e7ff',
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  fileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  fileIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fileIcon: {
+    fontSize: 18,
+  },
+  fileInfo: {
+    flex: 1,
+  },
+  fileName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1a1a2e',
+  },
+  fileMeta: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  fileClearBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+  },
+  fileClearText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  fileHint: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 8,
   },
   // Botones
   btnPrimary: {
