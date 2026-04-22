@@ -167,6 +167,7 @@ export default function LibroDetalleScreen({ route, navigation }) {
   const generoTexto = libro?.genero || 'Sin género';
   const anioTexto = libro?.anio || 'Sin año';
   const paginasTexto = libro?.paginas ? `${libro.paginas} págs.` : 'Sin páginas';
+  const estadoTexto = libro?.estado || 'Pendiente por leer';
 
   return (
     <View style={[styles.container, isLandscape && styles.containerRow]}>
@@ -257,6 +258,11 @@ export default function LibroDetalleScreen({ route, navigation }) {
         >
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{generoTexto}</Text>
+          </View>
+          <View style={[styles.badge, styles.badgeSecondary]}>
+            <Text style={[styles.badgeText, styles.badgeTextSecondary]}>
+              {estadoTexto}
+            </Text>
           </View>
           <View style={[styles.badge, styles.badgeSecondary]}>
             <Text style={[styles.badgeText, styles.badgeTextSecondary]}>

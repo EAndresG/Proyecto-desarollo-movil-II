@@ -8,6 +8,7 @@ const INITIAL_LIBROS = [
     genero: 'Realismo mágico',
     anio: 1967,
     paginas: 432,
+    estado: 'Pendiente por leer',
     sinopsis:
       'La historia de la familia Buendía a lo largo de siete generaciones en el pueblo ficticio de Macondo.',
     portada: 'https://covers.openlibrary.org/b/id/8231432-L.jpg',
@@ -19,6 +20,7 @@ const INITIAL_LIBROS = [
     genero: 'Distopía',
     anio: 1949,
     paginas: 328,
+    estado: 'Pendiente por leer',
     sinopsis:
       'Una sociedad totalitaria controlada por el Gran Hermano donde el pensamiento independiente es un crimen.',
     portada: 'https://covers.openlibrary.org/b/id/8575708-L.jpg',
@@ -30,6 +32,7 @@ const INITIAL_LIBROS = [
     genero: 'Fábula',
     anio: 1943,
     paginas: 96,
+    estado: 'Pendiente por leer',
     sinopsis:
       'Un principito viaja por distintos planetas y reflexiona sobre la vida, el amor y la amistad.',
     portada: 'https://covers.openlibrary.org/b/id/8516558-L.jpg',
@@ -41,6 +44,7 @@ const INITIAL_LIBROS = [
     genero: 'Novela clásica',
     anio: 1605,
     paginas: 863,
+    estado: 'Pendiente por leer',
     sinopsis:
       'Un hidalgo enloquece leyendo libros de caballerías y sale a vivir aventuras como caballero errante.',
     portada: 'https://covers.openlibrary.org/b/id/9255566-L.jpg',
@@ -52,6 +56,7 @@ const INITIAL_LIBROS = [
     genero: 'Fantasía',
     anio: 1997,
     paginas: 309,
+    estado: 'Pendiente por leer',
     sinopsis:
       'Un joven huérfano descubre que es un mago y es admitido en la escuela de magia Hogwarts.',
     portada: 'https://covers.openlibrary.org/b/id/10110415-L.jpg',
@@ -63,6 +68,7 @@ const INITIAL_LIBROS = [
     genero: 'Fantasía épica',
     anio: 2007,
     paginas: 662,
+    estado: 'Pendiente por leer',
     sinopsis:
       'Kvothe narra su propia leyenda: cómo pasó de ser un niño prodigio a convertirse en el mago más temido.',
     portada: 'https://covers.openlibrary.org/b/id/8479041-L.jpg',
@@ -74,6 +80,7 @@ const INITIAL_LIBROS = [
     genero: 'Ciencia ficción',
     anio: 1965,
     paginas: 688,
+    estado: 'Pendiente por leer',
     sinopsis:
       'En un planeta desértico con la especia más valiosa del universo, un joven asume su destino épico.',
     portada: 'https://covers.openlibrary.org/b/id/9264645-L.jpg',

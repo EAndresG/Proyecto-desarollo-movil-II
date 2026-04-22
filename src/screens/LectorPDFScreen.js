@@ -32,7 +32,7 @@ const PLACEHOLDER_HTML = `<!DOCTYPE html>
 
 export default function LectorPDFScreen({ route, navigation }) {
   const { libroId } = route.params ?? {};
-  const { libros, lastPageById, setLastPage } = useLibros();
+  const { libros, lastPageById, setLastPage, updateLibro } = useLibros();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const libro = useMemo(
@@ -81,6 +81,13 @@ export default function LectorPDFScreen({ route, navigation }) {
       setLastPage(libroId, page);
     }
   }, [libroId, page, setLastPage]);
+
+  useEffect(() => {
+    if (!libro || isEpub) return;
+    if (libro.estado !== 'Terminado' && libro.estado !== 'Leyendo') {
+      updateLibro({ ...libro, estado: 'Leyendo' });
+    }
+  }, [isEpub, libro, updateLibro]);
 
   useEffect(() => {
     const loadPdf = async () => {
@@ -182,6 +189,13 @@ export default function LectorPDFScreen({ route, navigation }) {
     if (!webReady || !webRef.current) return;
     webRef.current.injectJavaScript(`window.setPage(${page}); true;`);
   }, [page, webReady]);
+
+  useEffect(() => {
+    if (!libro || !pageCount) return;
+    if (page >= pageCount && libro.estado !== 'Terminado') {
+      updateLibro({ ...libro, estado: 'Terminado' });
+    }
+  }, [libro, page, pageCount, updateLibro]);
 
   const handleTrackPress = useCallback((evt) => {
     if (!pageCount) return;

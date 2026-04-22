@@ -381,7 +381,7 @@ export default function AgregarLibroScreen({ route, navigation }) {
       paginas: normalizeNumber(form.paginas),
       sinopsis: form.sinopsis.trim(),
       portada: form.portada.trim() || PLACEHOLDER_PORTADA,
-      estado: libroActual?.estado ?? 'Por leer',
+      estado: libroActual?.estado ?? 'Pendiente por leer',
       rutaArchivo: archivoInfo?.uri || libroActual?.rutaArchivo,
     };
 

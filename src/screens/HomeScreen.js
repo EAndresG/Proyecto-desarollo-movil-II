@@ -15,6 +15,8 @@ import { useLibros } from '../context/LibrosContext';
 
 export default function HomeScreen({ navigation }) {
   const [query, setQuery] = useState('');
+  const [filterVisible, setFilterVisible] = useState(false);
+  const [filterOption, setFilterOption] = useState('all');
   const { libros } = useLibros();
   const [fabPressed, setFabPressed] = useState(false);
   const { width, height } = useWindowDimensions();
@@ -48,13 +50,51 @@ export default function HomeScreen({ navigation }) {
 
   const librosFiltrados = useMemo(() => {
     const texto = query.toLowerCase().trim();
-    if (!texto) return libros;
-    return libros.filter(
-      (l) =>
-        l.titulo.toLowerCase().includes(texto) ||
-        l.autor.toLowerCase().includes(texto)
-    );
-  }, [libros, query]);
+    let result = libros;
+
+    if (texto) {
+      result = result.filter(
+        (l) =>
+          l.titulo.toLowerCase().includes(texto) ||
+          l.autor.toLowerCase().includes(texto)
+      );
+    }
+
+    if (filterOption === 'pendiente') {
+      result = result.filter((l) => (l.estado || 'Pendiente por leer') === 'Pendiente por leer');
+    }
+    if (filterOption === 'leyendo') {
+      result = result.filter((l) => l.estado === 'Leyendo');
+    }
+    if (filterOption === 'terminado') {
+      result = result.filter((l) => l.estado === 'Terminado');
+    }
+    if (filterOption === 'paginas_desc') {
+      result = [...result].sort((a, b) => (b.paginas || 0) - (a.paginas || 0));
+    }
+    if (filterOption === 'paginas_asc') {
+      result = [...result].sort((a, b) => (a.paginas || 0) - (b.paginas || 0));
+    }
+
+    return result;
+  }, [filterOption, libros, query]);
+
+  const filterLabel = useMemo(() => {
+    switch (filterOption) {
+      case 'pendiente':
+        return 'Pendiente por leer';
+      case 'leyendo':
+        return 'Leyendo';
+      case 'terminado':
+        return 'Terminado';
+      case 'paginas_desc':
+        return 'Mayor páginas';
+      case 'paginas_asc':
+        return 'Menor páginas';
+      default:
+        return 'Todos';
+    }
+  }, [filterOption]);
 
 
   const handlePressLibro = useCallback(
@@ -157,6 +197,19 @@ export default function HomeScreen({ navigation }) {
         />
       </Animated.View>
 
+      <View style={[styles.filterRow, { marginHorizontal: width * 0.04 }]}
+      >
+        <Text style={styles.filterLabel}>Ordenar por:</Text>
+        <TouchableOpacity
+          style={styles.filterPill}
+          onPress={() => setFilterVisible(true)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.filterPillText}>{filterLabel}</Text>
+          <Text style={styles.filterPillIcon}>▾</Text>
+        </TouchableOpacity>
+      </View>
+
       <TouchableOpacity
         style={[styles.iaShortcut, { marginHorizontal: width * 0.04 }]}
         onPress={handleAbrirIA}
@@ -219,6 +272,40 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.fabIcon}>+</Text>
         </TouchableOpacity>
       </Animated.View>
+
+      {filterVisible && (
+        <View style={styles.filterBackdrop}>
+          <TouchableOpacity
+            style={styles.filterOverlay}
+            onPress={() => setFilterVisible(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.filterCard}>
+            {[
+              { key: 'all', label: 'Todos' },
+              { key: 'pendiente', label: 'Pendiente por leer' },
+              { key: 'leyendo', label: 'Leyendo' },
+              { key: 'terminado', label: 'Terminado' },
+              { key: 'paginas_desc', label: 'Mayor páginas' },
+              { key: 'paginas_asc', label: 'Menor páginas' },
+            ].map((option) => (
+              <TouchableOpacity
+                key={option.key}
+                style={styles.filterOption}
+                onPress={() => {
+                  setFilterOption(option.key);
+                  setFilterVisible(false);
+                }}
+              >
+                <Text style={styles.filterOptionText}>{option.label}</Text>
+                {filterOption === option.key && (
+                  <Text style={styles.filterOptionCheck}>✓</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -265,6 +352,35 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: '#1a1a2e',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  filterLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#eef2ff',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  filterPillText: {
+    fontSize: 12,
+    color: '#4f46e5',
+    fontWeight: '600',
+  },
+  filterPillIcon: {
+    fontSize: 12,
+    color: '#4f46e5',
   },
   iaShortcut: {
     backgroundColor: '#dbeafe',
@@ -335,5 +451,44 @@ const styles = StyleSheet.create({
     color: '#fff',
     lineHeight: 34,
     fontWeight: '300',
+  },
+  filterBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+  },
+  filterOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.1)',
+  },
+  filterCard: {
+    backgroundColor: '#ffffff',
+    marginTop: 180,
+    marginRight: 18,
+    borderRadius: 14,
+    paddingVertical: 10,
+    width: 210,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  filterOptionText: {
+    fontSize: 13,
+    color: '#1a1a2e',
+    fontWeight: '600',
+  },
+  filterOptionCheck: {
+    fontSize: 12,
+    color: '#4f46e5',
+    fontWeight: '700',
   },
 });

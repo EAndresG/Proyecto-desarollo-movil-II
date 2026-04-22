@@ -13,6 +13,13 @@ const BookCard = React.memo(({ book, onPress }) => {
   const isLandscape = width > height;
   const cardWidth = isLandscape ? (width / 2) - 24 : width - 32;
   const metaParts = [];
+  const estado = book.estado || 'Pendiente por leer';
+  const estadoStyle =
+    estado === 'Terminado'
+      ? styles.statusDone
+      : estado === 'Leyendo'
+        ? styles.statusReading
+        : styles.statusPending;
 
   if (book.anio) {
     metaParts.push(book.anio);
@@ -46,6 +53,9 @@ const BookCard = React.memo(({ book, onPress }) => {
               <Text style={styles.badgeText}>{book.genero}</Text>
             </View>
           )}
+          <View style={[styles.statusBadge, estadoStyle]}>
+            <Text style={styles.statusText}>{estado}</Text>
+          </View>
         </View>
         <Text style={styles.meta}>{metaText}</Text>
       </View>
@@ -113,6 +123,26 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
     marginTop: 4,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  statusPending: {
+    backgroundColor: '#fef3c7',
+  },
+  statusReading: {
+    backgroundColor: '#dbeafe',
+  },
+  statusDone: {
+    backgroundColor: '#dcfce7',
   },
   meta: {
     fontSize: 12,
