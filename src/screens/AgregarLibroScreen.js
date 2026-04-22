@@ -35,12 +35,13 @@ export default function AgregarLibroScreen({ route, navigation }) {
   const modoEdicion = params.modoEdicion === true;
   const libroRecibido = params.libro ?? null;
   const libroIdRecibido = params.libroId ?? null;
-  const { libros, addLibro, updateLibro, generateLibroId } = useLibros();
+  const { libros, addLibro, updateLibro, deleteLibro, generateLibroId } = useLibros();
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [busqueda, setBusqueda] = useState('');
   const [archivoInfo, setArchivoInfo] = useState(null);
   const [noticeVisible, setNoticeVisible] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
   const [noticeConfig, setNoticeConfig] = useState({
     title: '',
     message: '',
@@ -315,6 +316,44 @@ export default function AgregarLibroScreen({ route, navigation }) {
     setArchivoInfo(null);
   }, []);
 
+  const handleEliminar = useCallback(() => {
+    const libroId = libroActual?.id || libroIdRecibido;
+    if (!libroId) return;
+
+    setConfirmVisible(true);
+  }, [
+    deleteLibro,
+    libroActual,
+    libroIdRecibido,
+  ]);
+
+  const handleConfirmDelete = useCallback(() => {
+    const libroId = libroActual?.id || libroIdRecibido;
+    if (!libroId) return;
+
+    setConfirmVisible(false);
+    deleteLibro(libroId);
+    showNotice({
+      title: 'Libro eliminado',
+      message: 'El libro fue eliminado correctamente.',
+      emoji: '🗑️',
+      variant: 'warning',
+      durationMs: 1500,
+    });
+    if (submitTimer.current) {
+      clearTimeout(submitTimer.current);
+    }
+    submitTimer.current = setTimeout(() => {
+      navigation.navigate('Home');
+    }, 1600);
+  }, [
+    deleteLibro,
+    libroActual,
+    libroIdRecibido,
+    navigation,
+    showNotice,
+  ]);
+
   const normalizeNumber = useCallback((value) => {
     const trimmed = String(value ?? '').trim();
     if (!trimmed) return '';
@@ -536,6 +575,16 @@ export default function AgregarLibroScreen({ route, navigation }) {
             {modoEdicion ? '💾  Guardar cambios' : '➕  Agregar libro'}
           </Text>
         </TouchableOpacity>
+
+        {modoEdicion && (
+          <TouchableOpacity
+            style={styles.btnDanger}
+            onPress={handleEliminar}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.btnDangerText}>🗑️  Eliminar libro</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       <Modal transparent visible={noticeVisible} animationType="none">
@@ -554,6 +603,34 @@ export default function AgregarLibroScreen({ route, navigation }) {
             <Text style={styles.noticeTitle}>{noticeConfig.title}</Text>
             <Text style={styles.noticeText}>{noticeConfig.message}</Text>
           </Animated.View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={confirmVisible} animationType="none">
+        <View style={styles.noticeBackdrop}>
+          <View style={[styles.noticeCard, styles.noticeCard_warning]}>
+            <Text style={styles.noticeEmoji}>🗑️</Text>
+            <Text style={styles.noticeTitle}>Eliminar libro</Text>
+            <Text style={styles.noticeText}>
+              Esta acción no se puede deshacer. ¿Deseas continuar?
+            </Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={styles.confirmBtnSecondary}
+                onPress={() => setConfirmVisible(false)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.confirmBtnSecondaryText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmBtnDanger}
+                onPress={handleConfirmDelete}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.confirmBtnDangerText}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </KeyboardAvoidingView>
@@ -778,6 +855,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  btnDanger: {
+    backgroundColor: '#fff1f2',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#fecdd3',
+  },
+  btnDangerText: {
+    color: '#be123c',
+    fontSize: 15,
+    fontWeight: '700',
+  },
   noticeBackdrop: {
     flex: 1,
     alignItems: 'center',
@@ -821,5 +911,32 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 8,
     textAlign: 'center',
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  confirmBtnSecondary: {
+    flex: 1,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  confirmBtnSecondaryText: {
+    color: '#6b7280',
+    fontWeight: '700',
+  },
+  confirmBtnDanger: {
+    flex: 1,
+    backgroundColor: '#be123c',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  confirmBtnDangerText: {
+    color: '#ffffff',
+    fontWeight: '700',
   },
 });

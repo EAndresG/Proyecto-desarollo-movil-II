@@ -117,6 +117,11 @@ export function LibrosProvider({ children }) {
     )));
   }, []);
 
+  const deleteLibro = useCallback((libroId) => {
+    if (!libroId) return;
+    setLibros((prev) => prev.filter((libro) => libro.id !== libroId));
+  }, []);
+
   const setLastPage = useCallback((libroId, page) => {
     if (!libroId || !page) return;
     setLastPageById((prev) => ({
@@ -130,6 +135,7 @@ export function LibrosProvider({ children }) {
     addLibroFromFile,
     addLibro,
     updateLibro,
+    deleteLibro,
     lastPageById,
     setLastPage,
     generateLibroId,
@@ -138,6 +144,7 @@ export function LibrosProvider({ children }) {
     addLibroFromFile,
     addLibro,
     updateLibro,
+    deleteLibro,
     lastPageById,
     setLastPage,
     generateLibroId,
