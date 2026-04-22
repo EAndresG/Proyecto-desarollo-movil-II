@@ -68,6 +68,10 @@ export default function HomeScreen({ navigation }) {
     navigation.navigate('AgregarLibro');
   }, [navigation]);
 
+  const handleAbrirIA = useCallback(() => {
+    navigation.navigate('AsistenteIA');
+  }, [navigation]);
+
   const handleFabPressIn = useCallback(() => {
     setFabPressed(true);
     Animated.spring(fabScale, {
@@ -152,6 +156,17 @@ export default function HomeScreen({ navigation }) {
           returnKeyType="search"
         />
       </Animated.View>
+
+      <TouchableOpacity
+        style={[styles.iaShortcut, { marginHorizontal: width * 0.04 }]}
+        onPress={handleAbrirIA}
+        activeOpacity={0.9}
+      >
+        <Text style={styles.iaShortcutTitle}>Asistente IA</Text>
+        <Text style={styles.iaShortcutText}>
+          Recibe recomendaciones dinamicas segun lo que quieras leer
+        </Text>
+      </TouchableOpacity>
 
       {/* Lista de libros */}
       <Animated.View
@@ -250,6 +265,25 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: '#1a1a2e',
+  },
+  iaShortcut: {
+    backgroundColor: '#dbeafe',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  iaShortcutTitle: {
+    color: '#1e3a8a',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  iaShortcutText: {
+    color: '#334155',
+    fontSize: 13,
+    marginTop: 4,
   },
   listContent: {
     paddingTop: 6,
