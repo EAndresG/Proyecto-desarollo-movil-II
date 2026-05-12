@@ -298,6 +298,12 @@ export default function AgregarLibroScreen({ route, navigation }) {
           ? prev.sinopsis
           : 'Sinopsis pendiente de completar.',
       }));
+      if (!modoEdicion) {
+        setForm((prev) => ({
+          ...prev,
+          autor: prev.autor.trim() ? prev.autor : 'Desconocido',
+        }));
+      }
     } catch (error) {
       showNotice({
         title: 'Error al importar',
