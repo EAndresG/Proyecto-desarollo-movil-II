@@ -28,9 +28,11 @@ export default function LoginScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
   const [noticeVisible, setNoticeVisible] = useState(false);
+  const [showEmailHint, setShowEmailHint] = useState(false);
   const noticeOpacity = useRef(new Animated.Value(0)).current;
   const noticeScale = useRef(new Animated.Value(0.96)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const emailTimer = useRef(null);
 
   const isEmailValid = useMemo(() => validateEmail(email), [email]);
   const isPasswordValid = useMemo(() => validatePassword(password), [password]);
@@ -69,6 +71,24 @@ export default function LoginScreen({ navigation }) {
     ]).start();
   }, [localError, noticeOpacity, noticeScale, shakeAnim]);
 
+  useEffect(() => {
+    if (emailTimer.current) {
+      clearTimeout(emailTimer.current);
+    }
+    setShowEmailHint(false);
+
+    if (!email.trim()) return;
+    emailTimer.current = setTimeout(() => {
+      setShowEmailHint(true);
+    }, 1200);
+
+    return () => {
+      if (emailTimer.current) {
+        clearTimeout(emailTimer.current);
+      }
+    };
+  }, [email]);
+
   const handleSubmit = useCallback(async () => {
     if (!email.trim() || !password.trim()) {
       setLocalError('Todos los campos son obligatorios');
@@ -106,6 +126,11 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <View style={styles.background}>
+        <View style={styles.blobPrimary} />
+        <View style={styles.blobSecondary} />
+        <View style={styles.gridOverlay} />
+      </View>
       <Animated.View style={[styles.card, { transform: [{ translateX: shakeAnim }] }]}
       >
         <Text style={styles.title}>BookShelf</Text>
@@ -121,7 +146,7 @@ export default function LoginScreen({ navigation }) {
           value={email}
           onChangeText={setEmail}
         />
-        {!!email && !isEmailValid && (
+        {!!email && !isEmailValid && showEmailHint && (
           <Text style={styles.helperText}>Email inválido</Text>
         )}
 
@@ -194,6 +219,34 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     paddingHorizontal: 20,
     justifyContent: 'center',
+  },
+  background: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  blobPrimary: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: '#e0e7ff',
+    top: -90,
+    right: -60,
+    opacity: 0.7,
+  },
+  blobSecondary: {
+    position: 'absolute',
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: '#fde68a',
+    bottom: -80,
+    left: -50,
+    opacity: 0.35,
+  },
+  gridOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
   },
   card: {
     backgroundColor: '#fff',
