@@ -10,6 +10,7 @@ import {
   StatusBar,
   Animated,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import BookCard from '../components/BookCard';
 import { useLibros } from '../context/LibrosContext';
 
@@ -104,6 +105,10 @@ export default function HomeScreen({ navigation }) {
     [navigation]
   );
 
+  const handleOpenProfile = useCallback(() => {
+    navigation.navigate('Perfil');
+  }, [navigation]);
+
   const handleAgregar = useCallback(() => {
     navigation.navigate('AgregarLibro');
   }, [navigation]);
@@ -161,10 +166,21 @@ export default function HomeScreen({ navigation }) {
           },
         ]}
       >
-        <Text style={styles.headerTitle}>Mi Biblioteca</Text>
-        <Text style={styles.headerSubtitle}>
-          {librosFiltrados.length} libro{librosFiltrados.length !== 1 ? 's' : ''}
-        </Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.headerTitle}>Mi Biblioteca</Text>
+            <Text style={styles.headerSubtitle}>
+              {librosFiltrados.length} libro{librosFiltrados.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.profileBtn}
+            onPress={handleOpenProfile}
+            activeOpacity={0.85}
+          >
+            <Feather name="user" size={20} color="#4f46e5" />
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       {/* Barra de búsqueda */}
@@ -320,6 +336,15 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     backgroundColor: '#f8f9ff',
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  headerTextWrap: {
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
@@ -329,6 +354,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
     marginTop: 3,
+  },
+  profileBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchContainer: {
     flexDirection: 'row',

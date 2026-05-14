@@ -105,7 +105,6 @@ export default function LoginScreen({ navigation }) {
 
     try {
       await login(email.trim(), password);
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     } catch (err) {
       setLocalError(err?.message || 'Credenciales inválidas');
     }
