@@ -228,7 +228,7 @@ export default function PerfilScreen({ navigation }) {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.quickBtn, { backgroundColor: colors.soft }]}
-              onPress={() => navigation.navigate('Metas')}
+              onPress={() => navigation.navigate('MetasYHabitos')}
               activeOpacity={0.85}
             >
               <Text style={[styles.quickText, { color: colors.text, fontSize: 14 * fontScale }]}>

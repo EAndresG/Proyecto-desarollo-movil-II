@@ -8,6 +8,7 @@ import AsistenteIAScreen from '../screens/AsistenteIAScreen';
 import LectorPDFScreen from '../screens/LectorPDFScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 import MetasScreen from '../screens/MetasScreen';
+import MetasYHabitosScreen from '../screens/MetasYHabitosScreen';
 import EstadisticasScreenPlaceholder from '../screens/app/EstadisticasScreenPlaceholder';
 import RecordatoriosScreen from '../screens/RecordatoriosScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -45,7 +46,16 @@ function MainNavigator() {
         component={RecordatoriosScreen}
         options={{ headerShown: false }}
       />
-      <AppStack.Screen name="Metas" component={MetasScreen} />
+      <AppStack.Screen
+        name="Metas"
+        component={MetasScreen}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="MetasYHabitos"
+        component={MetasYHabitosScreen}
+        options={{ headerShown: false }}
+      />
       <AppStack.Screen name="LibroDetalle" component={LibroDetalleScreen} />
       <AppStack.Screen name="AgregarLibro" component={AgregarLibroScreen} />
       <AppStack.Screen name="LectorPDF" component={LectorPDFScreen} />
