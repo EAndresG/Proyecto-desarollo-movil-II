@@ -9,7 +9,7 @@ import LectorPDFScreen from '../screens/LectorPDFScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 import MetasScreen from '../screens/MetasScreen';
 import MetasYHabitosScreen from '../screens/MetasYHabitosScreen';
-import EstadisticasScreenPlaceholder from '../screens/app/EstadisticasScreenPlaceholder';
+import EstadisticasScreen from '../screens/EstadisticasScreen';
 import RecordatoriosScreen from '../screens/RecordatoriosScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
@@ -40,7 +40,11 @@ function MainNavigator() {
     <AppStack.Navigator>
       <AppStack.Screen name="Home" component={HomeScreen} />
       <AppStack.Screen name="Perfil" component={PerfilScreen} />
-      <AppStack.Screen name="Estadisticas" component={EstadisticasScreenPlaceholder} />
+      <AppStack.Screen
+        name="Estadisticas"
+        component={EstadisticasScreen}
+        options={{ headerShown: false }}
+      />
       <AppStack.Screen
         name="Recordatorios"
         component={RecordatoriosScreen}
