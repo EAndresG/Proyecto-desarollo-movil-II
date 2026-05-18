@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLibros } from '../context/LibrosContext';
 import KPICard from '../components/KPICard';
 import LineChartComponent from '../components/LineChartComponent';
@@ -17,6 +18,7 @@ import BarChartComponent from '../components/BarChartComponent';
 import PieChartComponent from '../components/PieChartComponent';
 import ExpandableMetrics from '../components/ExpandableMetrics';
 import BookCompletedCard from '../components/BookCompletedCard';
+import useAuth from '../hooks/useAuth';
 
 const COLORS = {
   background: '#f8f9ff',
@@ -30,6 +32,8 @@ const COLORS = {
   soft: '#f3f4f6',
 };
 
+const DEFAULT_ACCOUNT_EMAIL = 'test@example.com';
+
 const RANGE_OPTIONS = [
   { key: 'mes', label: 'Este mes' },
   { key: 'ano', label: 'Este año' },
@@ -38,13 +42,56 @@ const RANGE_OPTIONS = [
 
 const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-const BASE_MONTH_DATA = [
+const DEFAULT_MONTH_DATA = [
   { key: '2025-12', label: 'Dic 2025', libros: 1, paginas: 180 },
   { key: '2026-01', label: 'Ene 2026', libros: 2, paginas: 340 },
   { key: '2026-02', label: 'Feb 2026', libros: 1, paginas: 215 },
   { key: '2026-03', label: 'Mar 2026', libros: 3, paginas: 580 },
   { key: '2026-04', label: 'Abr 2026', libros: 2, paginas: 420 },
   { key: '2026-05', label: 'May 2026', libros: 2, paginas: 340 },
+];
+
+const DEFAULT_COMPLETED_BOOKS = [
+  {
+    id: 'comp-1',
+    titulo: '1984',
+    autor: 'George Orwell',
+    genero: 'Drama',
+    paginas: 254,
+    fecha: '2026-05-10',
+  },
+  {
+    id: 'comp-2',
+    titulo: 'Cien años de soledad',
+    autor: 'Gabriel Garcia Marquez',
+    genero: 'Realismo magico',
+    paginas: 432,
+    fecha: '2026-05-05',
+  },
+  {
+    id: 'comp-3',
+    titulo: 'El Principito',
+    autor: 'Saint-Exupery',
+    genero: 'Fantasia',
+    paginas: 96,
+    fecha: '2026-04-25',
+  },
+  {
+    id: 'comp-4',
+    titulo: 'Dune',
+    autor: 'Frank Herbert',
+    genero: 'Ciencia ficcion',
+    paginas: 688,
+    fecha: '2026-03-18',
+  },
+  {
+    id: 'comp-5',
+    titulo: 'Harry Potter',
+    autor: 'J.K. Rowling',
+    genero: 'Fantasia',
+    paginas: 309,
+    fecha: '2026-02-02',
+  },
 ];
 
 const GENRE_COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#14b8a6'];
@@ -72,6 +119,8 @@ function isInRange(date, range) {
 }
 
 export default function EstadisticasScreen({ navigation }) {
+  const { user } = useAuth();
+  const userKey = (user?.email || DEFAULT_ACCOUNT_EMAIL).toLowerCase();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -84,6 +133,10 @@ export default function EstadisticasScreen({ navigation }) {
   const [showAllCompleted, setShowAllCompleted] = useState(false);
   const [noticeVisible, setNoticeVisible] = useState(false);
   const [noticeConfig, setNoticeConfig] = useState({ title: '', message: '', emoji: '✨' });
+  const [completedBooks, setCompletedBooks] = useState([]);
+  const [monthData, setMonthData] = useState([]);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [streakValue, setStreakValue] = useState(0);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -92,6 +145,75 @@ export default function EstadisticasScreen({ navigation }) {
       useNativeDriver: true,
     }).start();
   }, [fadeAnim]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadStats = async () => {
+      setIsHydrated(false);
+      try {
+        const [rawStats, rawGoals] = await Promise.all([
+          AsyncStorage.getItem(`user:${userKey}:stats`),
+          AsyncStorage.getItem(`user:${userKey}:goals`),
+        ]);
+        if (!isMounted) return;
+
+        const fallbackStreak = userKey === DEFAULT_ACCOUNT_EMAIL ? 7 : 0;
+
+        if (rawGoals) {
+          const parsedGoals = JSON.parse(rawGoals);
+          const nextStreak = parsedGoals?.racha?.diasActuales;
+          setStreakValue(Number.isFinite(nextStreak) ? nextStreak : fallbackStreak);
+        } else {
+          setStreakValue(fallbackStreak);
+        }
+
+        if (rawStats) {
+          const parsed = JSON.parse(rawStats);
+          if (Array.isArray(parsed?.completedBooks)) {
+            setCompletedBooks(parsed.completedBooks);
+          }
+          if (Array.isArray(parsed?.monthData)) {
+            setMonthData(parsed.monthData);
+          }
+          if (parsed?.range) setRange(parsed.range);
+          if (parsed?.sortOrder) setSortOrder(parsed.sortOrder);
+          return;
+        }
+
+        if (userKey === DEFAULT_ACCOUNT_EMAIL) {
+          setCompletedBooks(DEFAULT_COMPLETED_BOOKS);
+          setMonthData(DEFAULT_MONTH_DATA);
+          setStreakValue(fallbackStreak);
+        } else {
+          setCompletedBooks([]);
+          setMonthData([]);
+          setStreakValue(fallbackStreak);
+        }
+      } catch (error) {
+        // ignore storage errors
+        if (isMounted) {
+          setStreakValue(userKey === DEFAULT_ACCOUNT_EMAIL ? 7 : 0);
+        }
+      } finally {
+        if (isMounted) {
+          setIsHydrated(true);
+        }
+      }
+    };
+
+    loadStats();
+    return () => {
+      isMounted = false;
+    };
+  }, [userKey]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    AsyncStorage.setItem(
+      `user:${userKey}:stats`,
+      JSON.stringify({ completedBooks, monthData, range, sortOrder }),
+    );
+  }, [completedBooks, isHydrated, monthData, range, sortOrder, userKey]);
 
   const showNotice = useCallback((config) => {
     setNoticeConfig(config);
@@ -121,49 +243,6 @@ export default function EstadisticasScreen({ navigation }) {
     }, 1800);
   }, [noticeOpacity, noticeScale]);
 
-  const completedBooks = useMemo(() => [
-    {
-      id: 'comp-1',
-      titulo: '1984',
-      autor: 'George Orwell',
-      genero: 'Drama',
-      paginas: 254,
-      fecha: '2026-05-10',
-    },
-    {
-      id: 'comp-2',
-      titulo: 'Cien años de soledad',
-      autor: 'Gabriel Garcia Marquez',
-      genero: 'Realismo magico',
-      paginas: 432,
-      fecha: '2026-05-05',
-    },
-    {
-      id: 'comp-3',
-      titulo: 'El Principito',
-      autor: 'Saint-Exupery',
-      genero: 'Fantasia',
-      paginas: 96,
-      fecha: '2026-04-25',
-    },
-    {
-      id: 'comp-4',
-      titulo: 'Dune',
-      autor: 'Frank Herbert',
-      genero: 'Ciencia ficcion',
-      paginas: 688,
-      fecha: '2026-03-18',
-    },
-    {
-      id: 'comp-5',
-      titulo: 'Harry Potter',
-      autor: 'J.K. Rowling',
-      genero: 'Fantasia',
-      paginas: 309,
-      fecha: '2026-02-02',
-    },
-  ], []);
-
   const filteredBooks = useMemo(() => {
     return completedBooks.filter((book) => isInRange(parseDate(book.fecha), range));
   }, [completedBooks, range]);
@@ -171,23 +250,24 @@ export default function EstadisticasScreen({ navigation }) {
   const kpis = useMemo(() => {
     const totalBooks = filteredBooks.length;
     const totalPages = filteredBooks.reduce((sum, book) => sum + (book.paginas || 0), 0);
-    const streak = 7;
+    const streak = streakValue;
     return {
       totalBooks,
       totalPages,
       streak,
     };
-  }, [filteredBooks]);
+  }, [filteredBooks, streakValue]);
 
   const chartData = useMemo(() => {
+    if (!monthData.length) return [];
     if (range === 'mes') {
-      const currentKey = BASE_MONTH_DATA[BASE_MONTH_DATA.length - 1]?.key;
-      return BASE_MONTH_DATA.map((item) => (
+      const currentKey = monthData[monthData.length - 1]?.key;
+      return monthData.map((item) => (
         item.key === currentKey ? item : { ...item, libros: 0, paginas: 0 }
       ));
     }
-    return BASE_MONTH_DATA;
-  }, [range]);
+    return monthData;
+  }, [monthData, range]);
 
   const genreData = useMemo(() => {
     const map = new Map();

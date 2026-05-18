@@ -1,12 +1,35 @@
-import React, { createContext, useCallback, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as authService from '../services/authService';
 
 const AuthContext = createContext(null);
+const SESSION_KEY = 'auth:session';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+    const restoreSession = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(SESSION_KEY);
+        if (!raw || !isMounted) return;
+        const parsed = JSON.parse(raw);
+        if (parsed?.email) {
+          setUser(parsed);
+        }
+      } catch (err) {
+        // ignore restore errors
+      }
+    };
+
+    restoreSession();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const clearError = useCallback(() => {
     setError('');
@@ -18,6 +41,11 @@ export function AuthProvider({ children }) {
     try {
       const result = await authService.login(email, password);
       setUser(result);
+      try {
+        await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(result));
+      } catch (err) {
+        // ignore storage errors
+      }
       return result;
     } catch (err) {
       setError(err?.message || 'Credenciales inválidas');
@@ -33,6 +61,11 @@ export function AuthProvider({ children }) {
     try {
       const result = await authService.register(email, password, nombre);
       setUser(result);
+      try {
+        await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(result));
+      } catch (err) {
+        // ignore storage errors
+      }
       return result;
     } catch (err) {
       setError(err?.message || 'El email ya está registrado');
@@ -44,6 +77,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     setUser(null);
+    AsyncStorage.removeItem(SESSION_KEY);
   }, []);
 
   const value = useMemo(() => ({

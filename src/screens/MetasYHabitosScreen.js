@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MetaProgressCard from '../components/MetaProgressCard';
 import Streak from '../components/Streak';
 import CalendarStreak from '../components/CalendarStreak';
 import BadgeItem from '../components/BadgeItem';
 import PresetMetaButton from '../components/PresetMetaButton';
+import useAuth from '../hooks/useAuth';
 
 const COLORS = {
   background: '#f8f9ff',
@@ -49,6 +51,7 @@ const MONTHS = [
 
 const DAILY_GOAL = 100;
 const MAX_BACK_MONTHS = 6;
+const DEFAULT_ACCOUNT_EMAIL = 'test@example.com';
 
 function formatDateKey(date) {
   const year = date.getFullYear();
@@ -105,13 +108,58 @@ function createInitialReadings() {
   return readings;
 }
 
+function buildDefaultMetas() {
+  const now = new Date();
+  const year = now.getFullYear();
+  return [
+    {
+      id: 'meta-1',
+      tipo: 'libros',
+      cantidad: 3,
+      lograda: 2,
+      periodoType: 'mes',
+      periodoLabel: getMonthLabel(now),
+      periodoKey: `${year}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+    },
+    {
+      id: 'meta-2',
+      tipo: 'paginas',
+      cantidad: 500,
+      lograda: 360,
+      periodoType: 'ano',
+      periodoLabel: String(year),
+      periodoKey: String(year),
+    },
+  ];
+}
+
+function buildDefaultRacha() {
+  return {
+    diasActuales: 7,
+    mejorRacha: 15,
+    ultimaLectura: formatDateKey(new Date()),
+    completadoHoy: true,
+  };
+}
+
+const EMPTY_RACHA = {
+  diasActuales: 0,
+  mejorRacha: 0,
+  ultimaLectura: '',
+  completadoHoy: false,
+};
+
 export default function MetasYHabitosScreen({ navigation }) {
+  const { user } = useAuth();
+  const userKey = (user?.email || DEFAULT_ACCOUNT_EMAIL).toLowerCase();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const noticeOpacity = useRef(new Animated.Value(0)).current;
   const noticeScale = useRef(new Animated.Value(0.96)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const [noticeVisible, setNoticeVisible] = useState(false);
   const [noticeConfig, setNoticeConfig] = useState({
@@ -121,40 +169,10 @@ export default function MetasYHabitosScreen({ navigation }) {
     variant: 'info',
   });
 
-  const [metas, setMetas] = useState(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    return [
-      {
-        id: 'meta-1',
-        tipo: 'libros',
-        cantidad: 3,
-        lograda: 2,
-        periodoType: 'mes',
-        periodoLabel: getMonthLabel(now),
-        periodoKey: `${year}-${String(now.getMonth() + 1).padStart(2, '0')}`,
-      },
-      {
-        id: 'meta-2',
-        tipo: 'paginas',
-        cantidad: 500,
-        lograda: 360,
-        periodoType: 'ano',
-        periodoLabel: String(year),
-        periodoKey: String(year),
-      },
-    ];
-  });
-
-  const [dailyReadings, setDailyReadings] = useState(() => createInitialReadings());
+  const [metas, setMetas] = useState([]);
+  const [dailyReadings, setDailyReadings] = useState({});
   const [monthDate, setMonthDate] = useState(() => new Date());
-
-  const [racha, setRacha] = useState({
-    diasActuales: 7,
-    mejorRacha: 15,
-    ultimaLectura: formatDateKey(new Date()),
-    completadoHoy: true,
-  });
+  const [racha, setRacha] = useState(EMPTY_RACHA);
 
   const [readingModalVisible, setReadingModalVisible] = useState(false);
   const [readingInput, setReadingInput] = useState('');
@@ -196,6 +214,60 @@ export default function MetasYHabitosScreen({ navigation }) {
       useNativeDriver: true,
     }).start();
   }, [fadeAnim]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadUserData = async () => {
+      setIsHydrated(false);
+      try {
+        const raw = await AsyncStorage.getItem(`user:${userKey}:goals`);
+        if (!isMounted) return;
+
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed?.metas)) {
+            setMetas(parsed.metas);
+          }
+          if (parsed?.dailyReadings && typeof parsed.dailyReadings === 'object') {
+            setDailyReadings(parsed.dailyReadings);
+          }
+          if (parsed?.racha && typeof parsed.racha === 'object') {
+            setRacha({ ...EMPTY_RACHA, ...parsed.racha });
+          }
+          return;
+        }
+
+        if (userKey === DEFAULT_ACCOUNT_EMAIL) {
+          setMetas(buildDefaultMetas());
+          setDailyReadings(createInitialReadings());
+          setRacha(buildDefaultRacha());
+        } else {
+          setMetas([]);
+          setDailyReadings({});
+          setRacha(EMPTY_RACHA);
+        }
+      } catch (error) {
+        // ignore storage errors
+      } finally {
+        if (isMounted) {
+          setIsHydrated(true);
+        }
+      }
+    };
+
+    loadUserData();
+    return () => {
+      isMounted = false;
+    };
+  }, [userKey]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    AsyncStorage.setItem(
+      `user:${userKey}:goals`,
+      JSON.stringify({ metas, dailyReadings, racha }),
+    );
+  }, [dailyReadings, isHydrated, metas, racha, userKey]);
 
   const showNotice = useCallback((config) => {
     setNoticeConfig(config);

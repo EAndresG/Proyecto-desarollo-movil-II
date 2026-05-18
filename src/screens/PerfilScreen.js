@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import useAuth from '../hooks/useAuth';
 import ProfileInfoCard from '../components/ProfileInfoCard';
 import StatCard from '../components/StatCard';
@@ -25,16 +26,89 @@ const FONT_SCALES = {
   large: 1.08,
 };
 
+const DEFAULT_ACCOUNT_EMAIL = 'test@example.com';
+const DEFAULT_BIO = 'Amante de la lectura y las historias';
+const DEFAULT_COMPLETED_BOOKS = [
+  {
+    id: 'comp-1',
+    titulo: '1984',
+    autor: 'George Orwell',
+    genero: 'Drama',
+    paginas: 254,
+    fecha: '2026-05-10',
+  },
+  {
+    id: 'comp-2',
+    titulo: 'Cien años de soledad',
+    autor: 'Gabriel Garcia Marquez',
+    genero: 'Realismo magico',
+    paginas: 432,
+    fecha: '2026-05-05',
+  },
+  {
+    id: 'comp-3',
+    titulo: 'El Principito',
+    autor: 'Saint-Exupery',
+    genero: 'Fantasia',
+    paginas: 96,
+    fecha: '2026-04-25',
+  },
+  {
+    id: 'comp-4',
+    titulo: 'Dune',
+    autor: 'Frank Herbert',
+    genero: 'Ciencia ficcion',
+    paginas: 688,
+    fecha: '2026-03-18',
+  },
+  {
+    id: 'comp-5',
+    titulo: 'Harry Potter',
+    autor: 'J.K. Rowling',
+    genero: 'Fantasia',
+    paginas: 309,
+    fecha: '2026-02-02',
+  },
+];
+
+function getFavoriteGenre(books) {
+  if (!books.length) return 'Sin genero';
+  const map = new Map();
+  books.forEach((book) => {
+    const key = (book.genero || 'Sin genero').trim();
+    map.set(key, (map.get(key) || 0) + 1);
+  });
+  return Array.from(map.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Sin genero';
+}
+
+function formatNumber(value) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric)) return '0';
+  try {
+    return numeric.toLocaleString('es-ES');
+  } catch (error) {
+    return String(numeric);
+  }
+}
+
 export default function PerfilScreen({ navigation }) {
   const { user, logout } = useAuth();
+  const userKey = (user?.email || DEFAULT_ACCOUNT_EMAIL).toLowerCase();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
 
   const [name, setName] = useState(user?.nombre || 'Juan Pérez');
-  const [email] = useState(user?.email || 'juan@example.com');
-  const [bio, setBio] = useState('Amante de la lectura y las historias');
+  const [email, setEmail] = useState(user?.email || 'juan@example.com');
+  const [bio, setBio] = useState(DEFAULT_BIO);
   const [darkMode, setDarkMode] = useState(false);
   const [fontSize, setFontSize] = useState('normal');
+  const [profileHydrated, setProfileHydrated] = useState(false);
+  const [profileStats, setProfileStats] = useState({
+    totalBooks: 0,
+    totalPages: 0,
+    streak: 0,
+    favoriteGenre: 'Sin genero',
+  });
 
   const [editVisible, setEditVisible] = useState(false);
   const [editName, setEditName] = useState(name);
@@ -85,12 +159,32 @@ export default function PerfilScreen({ navigation }) {
 
   const stats = useMemo(
     () => [
-      { title: 'Libros leidos', value: '5', icon: 'book-open', color: '#4f46e5' },
-      { title: 'Paginas leidas', value: '1,240', icon: 'file-text', color: '#14b8a6' },
-      { title: 'Racha actual', value: '7 dias', icon: 'zap', color: '#f97316' },
-      { title: 'Genero favorito', value: 'Fantasia', icon: 'star', color: '#a855f7' },
+      {
+        title: 'Libros leidos',
+        value: String(profileStats.totalBooks),
+        icon: 'book-open',
+        color: '#4f46e5',
+      },
+      {
+        title: 'Paginas leidas',
+        value: formatNumber(profileStats.totalPages),
+        icon: 'file-text',
+        color: '#14b8a6',
+      },
+      {
+        title: 'Racha actual',
+        value: `${profileStats.streak} dias`,
+        icon: 'zap',
+        color: '#f97316',
+      },
+      {
+        title: 'Genero favorito',
+        value: profileStats.favoriteGenre,
+        icon: 'star',
+        color: '#a855f7',
+      },
     ],
-    []
+    [profileStats]
   );
 
   useEffect(() => {
@@ -100,6 +194,112 @@ export default function PerfilScreen({ navigation }) {
       useNativeDriver: true,
     }).start();
   }, [fadeAnim]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadProfile = async () => {
+      setProfileHydrated(false);
+      setEmail(user?.email || 'juan@example.com');
+      try {
+        const raw = await AsyncStorage.getItem(`user:${userKey}:profile`);
+        if (!isMounted) return;
+
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setName(parsed?.name || user?.nombre || 'Juan Pérez');
+          setBio(parsed?.bio || DEFAULT_BIO);
+          setDarkMode(Boolean(parsed?.darkMode));
+          setFontSize(parsed?.fontSize || 'normal');
+          return;
+        }
+
+        setName(user?.nombre || 'Juan Pérez');
+        setBio(DEFAULT_BIO);
+        setDarkMode(false);
+        setFontSize('normal');
+      } catch (error) {
+        // ignore storage errors
+      } finally {
+        if (isMounted) {
+          setProfileHydrated(true);
+        }
+      }
+    };
+
+    loadProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.email, user?.nombre, userKey]);
+
+  useEffect(() => {
+    if (!profileHydrated) return;
+    AsyncStorage.setItem(
+      `user:${userKey}:profile`,
+      JSON.stringify({ name, bio, darkMode, fontSize }),
+    );
+  }, [bio, darkMode, fontSize, name, profileHydrated, userKey]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadStats = async () => {
+      try {
+        const [rawStats, rawGoals] = await Promise.all([
+          AsyncStorage.getItem(`user:${userKey}:stats`),
+          AsyncStorage.getItem(`user:${userKey}:goals`),
+        ]);
+        if (!isMounted) return;
+
+        let completedBooks = [];
+        let streak = 0;
+
+        if (rawStats) {
+          const parsedStats = JSON.parse(rawStats);
+          if (Array.isArray(parsedStats?.completedBooks)) {
+            completedBooks = parsedStats.completedBooks;
+          }
+        }
+
+        if (rawGoals) {
+          const parsedGoals = JSON.parse(rawGoals);
+          const nextStreak = parsedGoals?.racha?.diasActuales;
+          streak = Number.isFinite(nextStreak) ? nextStreak : 0;
+        }
+
+        if (!rawStats && userKey === DEFAULT_ACCOUNT_EMAIL) {
+          completedBooks = DEFAULT_COMPLETED_BOOKS;
+        }
+        if (!rawGoals && userKey === DEFAULT_ACCOUNT_EMAIL) {
+          streak = 7;
+        }
+
+        const totalBooks = completedBooks.length;
+        const totalPages = completedBooks.reduce((sum, item) => sum + (item.paginas || 0), 0);
+        const favoriteGenre = getFavoriteGenre(completedBooks);
+
+        setProfileStats({
+          totalBooks,
+          totalPages,
+          streak,
+          favoriteGenre,
+        });
+      } catch (error) {
+        if (isMounted) {
+          setProfileStats({
+            totalBooks: 0,
+            totalPages: 0,
+            streak: 0,
+            favoriteGenre: 'Sin genero',
+          });
+        }
+      }
+    };
+
+    loadStats();
+    return () => {
+      isMounted = false;
+    };
+  }, [userKey]);
 
   const showNotice = useCallback((message, variant) => {
     setNoticeConfig({ message, variant });
@@ -162,7 +362,6 @@ export default function PerfilScreen({ navigation }) {
   const confirmLogout = useCallback(() => {
     setLogoutVisible(false);
     logout();
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   }, [logout, navigation]);
 
   const statPress = useCallback((title, value) => {
