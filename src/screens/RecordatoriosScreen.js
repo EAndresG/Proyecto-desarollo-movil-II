@@ -15,6 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import TimePickerComponent from '../components/TimePickerComponent';
 import DaySelector from '../components/DaySelector';
 import PresetButton from '../components/PresetButton';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MESSAGE_LIMIT = 100;
 const ALL_DAYS = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
@@ -38,6 +39,8 @@ const DEFAULT_CONFIG = {
   message: 'Es hora de leer',
 };
 
+const REMINDERS_STORAGE_KEY = 'device:reminders';
+
 export default function RecordatoriosScreen({ navigation }) {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
@@ -56,6 +59,7 @@ export default function RecordatoriosScreen({ navigation }) {
   const [editingId, setEditingId] = useState(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const [noticeVisible, setNoticeVisible] = useState(false);
   const [noticeConfig, setNoticeConfig] = useState({ message: '', variant: 'success' });
@@ -85,6 +89,42 @@ export default function RecordatoriosScreen({ navigation }) {
       useNativeDriver: true,
     }).start();
   }, [fadeAnim]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadReminders = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(REMINDERS_STORAGE_KEY);
+        if (!raw || !isMounted) return;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setReminders(parsed);
+          const nextId = parsed.reduce((max, item) => {
+            const match = String(item.id || '').match(/rem-(\d+)/);
+            const value = match ? Number(match[1]) : 0;
+            return Number.isNaN(value) ? max : Math.max(max, value);
+          }, 0);
+          reminderIdRef.current = Math.max(2, nextId + 1);
+        }
+      } catch (error) {
+        // ignore storage errors
+      } finally {
+        if (isMounted) {
+          setIsHydrated(true);
+        }
+      }
+    };
+
+    loadReminders();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    AsyncStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
+  }, [isHydrated, reminders]);
 
   const showNotice = useCallback((messageText, variant) => {
     setNoticeConfig({ message: messageText, variant });

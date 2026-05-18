@@ -1,4 +1,12 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const INITIAL_LIBROS = [
   {
@@ -89,9 +97,64 @@ const INITIAL_LIBROS = [
 
 const LibrosContext = createContext(null);
 
+const STORAGE_KEYS = {
+  books: 'device:books',
+  lastPage: 'device:lastPageById',
+};
+
 export function LibrosProvider({ children }) {
   const [libros, setLibros] = useState(() => INITIAL_LIBROS);
   const [lastPageById, setLastPageById] = useState({});
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadDeviceData = async () => {
+      try {
+        const [booksRaw, lastPageRaw] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.books),
+          AsyncStorage.getItem(STORAGE_KEYS.lastPage),
+        ]);
+
+        if (!isMounted) return;
+
+        if (booksRaw) {
+          const parsedBooks = JSON.parse(booksRaw);
+          if (Array.isArray(parsedBooks)) {
+            setLibros(parsedBooks);
+          }
+        }
+
+        if (lastPageRaw) {
+          const parsedLastPage = JSON.parse(lastPageRaw);
+          if (parsedLastPage && typeof parsedLastPage === 'object') {
+            setLastPageById(parsedLastPage);
+          }
+        }
+      } catch (error) {
+        // ignore storage errors and fallback to defaults
+      } finally {
+        if (isMounted) {
+          setIsHydrated(true);
+        }
+      }
+    };
+
+    loadDeviceData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    AsyncStorage.setItem(STORAGE_KEYS.books, JSON.stringify(libros));
+  }, [isHydrated, libros]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    AsyncStorage.setItem(STORAGE_KEYS.lastPage, JSON.stringify(lastPageById));
+  }, [isHydrated, lastPageById]);
 
   const generateLibroId = useCallback(() => {
     const randomSuffix = Math.random().toString(36).slice(2, 7);
