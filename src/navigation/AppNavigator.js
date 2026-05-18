@@ -1,4 +1,5 @@
 import React from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 
 import HomeScreen from '../screens/HomeScreen';
@@ -73,6 +74,22 @@ function MainNavigator() {
 }
 
 export default function AppNavigator() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isRestoring } = useAuth();
+  if (isRestoring) {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator size="large" color="#4f46e5" />
+      </View>
+    );
+  }
   return isAuthenticated ? <MainNavigator /> : <AuthNavigator />;
 }
+
+const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9ff',
+  },
+});

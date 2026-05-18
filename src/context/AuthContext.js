@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isRestoring, setIsRestoring] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -22,6 +23,10 @@ export function AuthProvider({ children }) {
         }
       } catch (err) {
         // ignore restore errors
+      } finally {
+        if (isMounted) {
+          setIsRestoring(false);
+        }
       }
     };
 
@@ -83,13 +88,14 @@ export function AuthProvider({ children }) {
   const value = useMemo(() => ({
     user,
     isAuthenticated: Boolean(user),
+    isRestoring,
     loading,
     error,
     login,
     register,
     logout,
     clearError,
-  }), [user, loading, error, login, register, logout, clearError]);
+  }), [user, isRestoring, loading, error, login, register, logout, clearError]);
 
   return (
     <AuthContext.Provider value={value}>
