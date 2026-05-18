@@ -14,7 +14,7 @@ const LIBROS_BASE = [
     { titulo: 'Dune', genero: 'ciencia ficcion', paginas: 688 },
     { titulo: '1984', genero: 'ciencia ficcion', paginas: 328 },
     { titulo: 'El Principito', genero: 'corto', paginas: 96 },
-    { titulo: 'Cien anos de soledad', genero: 'clasico', paginas: 432 },
+    { titulo: 'Cien años de soledad', genero: 'clasico', paginas: 432 },
     { titulo: 'Don Quijote de la Mancha', genero: 'clasico', paginas: 863 },
 ];
 

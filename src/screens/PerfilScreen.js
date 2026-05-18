@@ -260,13 +260,13 @@ export default function PerfilScreen({ navigation }) {
               fontScale={fontScale}
             />
             <ConfigOption
-              title="Tamano de fuente"
+              title="Tamaño de fuente"
               description="Ajusta el tamaño de los textos"
               type="selector"
               value={fontSize}
               onChange={setFontSize}
               options={[
-                { label: 'Pequeno', value: 'small' },
+                { label: 'Pequeño', value: 'small' },
                 { label: 'Normal', value: 'normal' },
                 { label: 'Grande', value: 'large' },
               ]}

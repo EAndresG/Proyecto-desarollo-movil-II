@@ -281,7 +281,7 @@ export default function LectorPDFScreen({ route, navigation }) {
               <Text style={styles.loaderHint} numberOfLines={3}>
                 Ruta: {libro?.rutaArchivo}
                 {'\n'}Existe: {String(fileInfo.exists)}
-                {'\n'}Tamano: {fileInfo.size || 0} bytes
+                {'\n'}Tamaño: {fileInfo.size || 0} bytes
               </Text>
             )}
           </View>

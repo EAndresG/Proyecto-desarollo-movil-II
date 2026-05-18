@@ -820,7 +820,7 @@ export default function MetasYHabitosScreen({ navigation }) {
             <View style={styles.radioRow}>
               {[
                 { key: 'mes', label: 'Este mes' },
-                { key: 'ano', label: 'Este ano' },
+                { key: 'ano', label: 'Este año' },
                 { key: 'personalizado', label: 'Día' },
               ].map((option) => {
                 const selected = metaForm.periodoType === option.key;

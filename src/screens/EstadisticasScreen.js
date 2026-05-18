@@ -32,7 +32,7 @@ const COLORS = {
 
 const RANGE_OPTIONS = [
   { key: 'mes', label: 'Este mes' },
-  { key: 'ano', label: 'Este ano' },
+  { key: 'ano', label: 'Este año' },
   { key: 'todoTiempo', label: 'Todo el tiempo' },
 ];
 
@@ -132,7 +132,7 @@ export default function EstadisticasScreen({ navigation }) {
     },
     {
       id: 'comp-2',
-      titulo: 'Cien anos de soledad',
+      titulo: 'Cien años de soledad',
       autor: 'Gabriel Garcia Marquez',
       genero: 'Realismo magico',
       paginas: 432,
