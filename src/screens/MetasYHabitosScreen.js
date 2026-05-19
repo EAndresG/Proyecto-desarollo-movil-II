@@ -342,6 +342,18 @@ export default function MetasYHabitosScreen({ navigation }) {
 
   const dailyPercent = Math.min(100, Math.round((pagesToday / DAILY_GOAL) * 100));
 
+  const metasWithDynamicProgress = useMemo(() => {
+    return metas.map((meta) => {
+      if (meta.tipo === 'paginas') {
+        return {
+          ...meta,
+          lograda: totalPagesFromProgress,
+        };
+      }
+      return meta;
+    });
+  }, [metas, totalPagesFromProgress]);
+
   useEffect(() => {
     const { streak, lastReadKey } = calculateStreak(dailyReadings);
     setRacha((prev) => ({
@@ -707,7 +719,7 @@ export default function MetasYHabitosScreen({ navigation }) {
             </View>
 
             <View style={styles.metaList}>
-              {metas.map((meta) => (
+              {metasWithDynamicProgress.map((meta) => (
                 <MetaProgressCard
                   key={meta.id}
                   meta={meta}
