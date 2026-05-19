@@ -315,30 +315,6 @@ export default function MetasYHabitosScreen({ navigation }) {
 
   const pagesToday = totalPagesFromProgress || (dailyReadings[todaysKey] || 0);
 
-  const currentMonthPages = useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    return Object.keys(dailyReadings).reduce((sum, key) => {
-      const [kYear, kMonth] = key.split('-').map((part) => Number(part));
-      if (kYear === year && kMonth === month + 1) {
-        return sum + (dailyReadings[key] || 0);
-      }
-      return sum;
-    }, 0);
-  }, [dailyReadings]);
-
-  const currentYearPages = useMemo(() => {
-    const year = new Date().getFullYear();
-    return Object.keys(dailyReadings).reduce((sum, key) => {
-      const [kYear] = key.split('-').map((part) => Number(part));
-      if (kYear === year) {
-        return sum + (dailyReadings[key] || 0);
-      }
-      return sum;
-    }, 0);
-  }, [dailyReadings]);
-
   const metaActualDisplay = useMemo(() => {
     if (!metaActual) {
       return {
@@ -351,7 +327,7 @@ export default function MetasYHabitosScreen({ navigation }) {
       };
     }
     const progressValue = metaActual.tipo === 'paginas'
-      ? (metaActual.periodoType === 'ano' ? currentYearPages : currentMonthPages)
+      ? totalPagesFromProgress
       : metaActual.lograda;
     const percent = metaActual.cantidad
       ? Math.min(100, Math.round((progressValue / metaActual.cantidad) * 100))
@@ -362,7 +338,7 @@ export default function MetasYHabitosScreen({ navigation }) {
       percent,
       isEmpty: false,
     };
-  }, [currentMonthPages, currentYearPages, metaActual]);
+  }, [metaActual, totalPagesFromProgress]);
 
   const dailyPercent = Math.min(100, Math.round((pagesToday / DAILY_GOAL) * 100));
 
