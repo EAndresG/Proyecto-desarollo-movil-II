@@ -175,9 +175,6 @@ export default function MetasYHabitosScreen({ navigation }) {
   const [monthDate, setMonthDate] = useState(() => new Date());
   const [racha, setRacha] = useState(EMPTY_RACHA);
 
-  const [readingModalVisible, setReadingModalVisible] = useState(false);
-  const [readingInput, setReadingInput] = useState('');
-
   const [metaModalVisible, setMetaModalVisible] = useState(false);
   const [metaForm, setMetaForm] = useState({
     id: null,
@@ -416,50 +413,6 @@ export default function MetasYHabitosScreen({ navigation }) {
       + (monthDate.getMonth() - new Date().getMonth());
     return diff < 0;
   }, [monthDate]);
-
-  const handleMarcarLeidoHoy = useCallback(() => {
-    setDailyReadings((prev) => {
-      const current = prev[todaysKey] || 0;
-      return { ...prev, [todaysKey]: current > 0 ? current : 1 };
-    });
-    showNotice({
-      title: 'Dia marcado',
-      message: 'Registramos tu lectura de hoy',
-      emoji: '✅',
-      variant: 'success',
-    });
-  }, [showNotice, todaysKey]);
-
-  const handleRegistrarLectura = useCallback(() => {
-    const value = Number.parseInt(readingInput, 10);
-    if (!value || value <= 0) {
-      Animated.sequence([
-        Animated.timing(shakeAnim, { toValue: 8, duration: 60, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 5, duration: 60, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
-      ]).start();
-      showNotice({
-        title: 'Dato invalido',
-        message: 'Ingresa paginas validas',
-        emoji: '⚠️',
-        variant: 'warning',
-      });
-      return;
-    }
-    setDailyReadings((prev) => ({
-      ...prev,
-      [todaysKey]: (prev[todaysKey] || 0) + value,
-    }));
-    setReadingModalVisible(false);
-    setReadingInput('');
-    showNotice({
-      title: 'Lectura registrada',
-      message: `Sumaste ${value} paginas hoy`,
-      emoji: '📖',
-      variant: 'success',
-    });
-  }, [readingInput, showNotice, shakeAnim, todaysKey]);
 
   const getPeriodoKey = useCallback((form) => {
     if (form.periodoType === 'mes') {
@@ -732,20 +685,7 @@ export default function MetasYHabitosScreen({ navigation }) {
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Ya leiste hoy?</Text>
-            <TouchableOpacity
-              style={[
-                styles.readToggle,
-                { backgroundColor: racha.completadoHoy ? COLORS.success : COLORS.soft },
-              ]}
-              onPress={handleMarcarLeidoHoy}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.readToggleText, { color: racha.completadoHoy ? '#fff' : COLORS.text }]}>
-                {racha.completadoHoy ? '✓ Leido hoy' : 'Marcar como leido'}
-              </Text>
-            </TouchableOpacity>
-
+            <Text style={styles.sectionTitle}>Leido hoy</Text>
             <Text style={styles.pagesToday}>{pagesToday} paginas</Text>
             <Text style={styles.pagesSub}>Leidas hoy</Text>
 
@@ -753,14 +693,6 @@ export default function MetasYHabitosScreen({ navigation }) {
               <View style={[styles.progressFillSmall, { width: `${dailyPercent}%` }]} />
             </View>
             <Text style={styles.progressHint}>{pagesToday}/{DAILY_GOAL} paginas diarias</Text>
-
-            <TouchableOpacity
-              style={styles.primaryBtn}
-              onPress={() => setReadingModalVisible(true)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.primaryBtnText}>Registrar lectura</Text>
-            </TouchableOpacity>
           </View>
 
           <View style={styles.sectionCard}>
@@ -829,40 +761,6 @@ export default function MetasYHabitosScreen({ navigation }) {
           </View>
         </ScrollView>
       </Animated.View>
-
-      <Modal transparent visible={readingModalVisible} animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <Animated.View style={[styles.modalCard, { transform: [{ translateX: shakeAnim }] }]}
-          >
-            <Text style={styles.modalTitle}>Registrar lectura</Text>
-            <Text style={styles.modalLabel}>Paginas leidas hoy</Text>
-            <TextInput
-              value={readingInput}
-              onChangeText={setReadingInput}
-              keyboardType="numeric"
-              placeholder="Ej: 45"
-              placeholderTextColor={COLORS.muted}
-              style={styles.modalInput}
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnGhost]}
-                onPress={() => setReadingModalVisible(false)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.modalBtnText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnPrimary]}
-                onPress={handleRegistrarLectura}
-                activeOpacity={0.85}
-              >
-                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
 
       <Modal transparent visible={metaModalVisible} animationType="fade">
         <View style={styles.modalBackdrop}>
