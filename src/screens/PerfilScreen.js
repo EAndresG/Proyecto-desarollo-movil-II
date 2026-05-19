@@ -13,6 +13,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import useAuth from '../hooks/useAuth';
+import { useLibros } from '../context/LibrosContext';
 import ProfileInfoCard from '../components/ProfileInfoCard';
 import StatCard from '../components/StatCard';
 import ConfigOption from '../components/ConfigOption';
@@ -94,6 +95,7 @@ function formatNumber(value) {
 export default function PerfilScreen({ navigation }) {
   const { user, logout } = useAuth();
   const userKey = (user?.email || DEFAULT_ACCOUNT_EMAIL).toLowerCase();
+  const { libros, lastPageById } = useLibros();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
 
@@ -103,12 +105,7 @@ export default function PerfilScreen({ navigation }) {
   const [darkMode, setDarkMode] = useState(false);
   const [fontSize, setFontSize] = useState('normal');
   const [profileHydrated, setProfileHydrated] = useState(false);
-  const [profileStats, setProfileStats] = useState({
-    totalBooks: 0,
-    totalPages: 0,
-    streak: 0,
-    favoriteGenre: 'Sin genero',
-  });
+  const [streakValue, setStreakValue] = useState(0);
 
   const [editVisible, setEditVisible] = useState(false);
   const [editName, setEditName] = useState(name);
@@ -156,6 +153,38 @@ export default function PerfilScreen({ navigation }) {
       soft: '#f3f4f6',
     };
   }, [darkMode]);
+
+  const completedBooksFromLibros = useMemo(() => {
+    return libros.filter((libro) => libro.estado === 'Terminado');
+  }, [libros]);
+
+  const completedBooks = useMemo(() => {
+    if (completedBooksFromLibros.length > 0) return completedBooksFromLibros;
+    if (userKey === DEFAULT_ACCOUNT_EMAIL) return DEFAULT_COMPLETED_BOOKS;
+    return [];
+  }, [completedBooksFromLibros, userKey]);
+
+  const totalPagesFromProgress = useMemo(() => {
+    return libros.reduce((sum, libro) => {
+      const lastPage = Number(lastPageById?.[libro.id] || 0);
+      if (!lastPage) return sum;
+      const totalPages = Number(libro.paginas) || lastPage;
+      return sum + Math.min(lastPage, totalPages);
+    }, 0);
+  }, [libros, lastPageById]);
+
+  const totalPagesFromCompleted = useMemo(() => {
+    return completedBooks.reduce((sum, item) => sum + (item.paginas || 0), 0);
+  }, [completedBooks]);
+
+  const favoriteGenre = useMemo(() => getFavoriteGenre(completedBooks), [completedBooks]);
+
+  const profileStats = useMemo(() => ({
+    totalBooks: completedBooks.length,
+    totalPages: totalPagesFromProgress || totalPagesFromCompleted,
+    streak: streakValue,
+    favoriteGenre,
+  }), [completedBooks, favoriteGenre, streakValue, totalPagesFromCompleted, totalPagesFromProgress]);
 
   const stats = useMemo(
     () => [
@@ -242,60 +271,27 @@ export default function PerfilScreen({ navigation }) {
 
   useEffect(() => {
     let isMounted = true;
-    const loadStats = async () => {
+    const loadStreak = async () => {
       try {
-        const [rawStats, rawGoals] = await Promise.all([
-          AsyncStorage.getItem(`user:${userKey}:stats`),
-          AsyncStorage.getItem(`user:${userKey}:goals`),
-        ]);
+        const rawGoals = await AsyncStorage.getItem(`user:${userKey}:goals`);
         if (!isMounted) return;
-
-        let completedBooks = [];
-        let streak = 0;
-
-        if (rawStats) {
-          const parsedStats = JSON.parse(rawStats);
-          if (Array.isArray(parsedStats?.completedBooks)) {
-            completedBooks = parsedStats.completedBooks;
-          }
-        }
 
         if (rawGoals) {
           const parsedGoals = JSON.parse(rawGoals);
           const nextStreak = parsedGoals?.racha?.diasActuales;
-          streak = Number.isFinite(nextStreak) ? nextStreak : 0;
+          setStreakValue(Number.isFinite(nextStreak) ? nextStreak : 0);
+          return;
         }
 
-        if (!rawStats && userKey === DEFAULT_ACCOUNT_EMAIL) {
-          completedBooks = DEFAULT_COMPLETED_BOOKS;
-        }
-        if (!rawGoals && userKey === DEFAULT_ACCOUNT_EMAIL) {
-          streak = 7;
-        }
-
-        const totalBooks = completedBooks.length;
-        const totalPages = completedBooks.reduce((sum, item) => sum + (item.paginas || 0), 0);
-        const favoriteGenre = getFavoriteGenre(completedBooks);
-
-        setProfileStats({
-          totalBooks,
-          totalPages,
-          streak,
-          favoriteGenre,
-        });
+        setStreakValue(userKey === DEFAULT_ACCOUNT_EMAIL ? 7 : 0);
       } catch (error) {
         if (isMounted) {
-          setProfileStats({
-            totalBooks: 0,
-            totalPages: 0,
-            streak: 0,
-            favoriteGenre: 'Sin genero',
-          });
+          setStreakValue(userKey === DEFAULT_ACCOUNT_EMAIL ? 7 : 0);
         }
       }
     };
 
-    loadStats();
+    loadStreak();
     return () => {
       isMounted = false;
     };

@@ -42,15 +42,6 @@ const RANGE_OPTIONS = [
 
 const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-const DEFAULT_MONTH_DATA = [
-  { key: '2025-12', label: 'Dic 2025', libros: 1, paginas: 180 },
-  { key: '2026-01', label: 'Ene 2026', libros: 2, paginas: 340 },
-  { key: '2026-02', label: 'Feb 2026', libros: 1, paginas: 215 },
-  { key: '2026-03', label: 'Mar 2026', libros: 3, paginas: 580 },
-  { key: '2026-04', label: 'Abr 2026', libros: 2, paginas: 420 },
-  { key: '2026-05', label: 'May 2026', libros: 2, paginas: 340 },
-];
-
 const DEFAULT_COMPLETED_BOOKS = [
   {
     id: 'comp-1',
@@ -97,8 +88,15 @@ const DEFAULT_COMPLETED_BOOKS = [
 const GENRE_COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#14b8a6'];
 
 function parseDate(value) {
-  const [year, month, day] = value.split('-').map((part) => Number(part));
+  if (!value) return new Date('');
+  const clean = String(value).split('T')[0];
+  const [year, month, day] = clean.split('-').map((part) => Number(part));
   return new Date(year, month - 1, day);
+}
+
+function toDateKey(value) {
+  if (!value) return '';
+  return String(value).split('T')[0];
 }
 
 function formatDateLabel(value) {
@@ -133,8 +131,6 @@ export default function EstadisticasScreen({ navigation }) {
   const [showAllCompleted, setShowAllCompleted] = useState(false);
   const [noticeVisible, setNoticeVisible] = useState(false);
   const [noticeConfig, setNoticeConfig] = useState({ title: '', message: '', emoji: '✨' });
-  const [completedBooks, setCompletedBooks] = useState([]);
-  const [monthData, setMonthData] = useState([]);
   const [isHydrated, setIsHydrated] = useState(false);
   const [streakValue, setStreakValue] = useState(0);
 
@@ -169,26 +165,12 @@ export default function EstadisticasScreen({ navigation }) {
 
         if (rawStats) {
           const parsed = JSON.parse(rawStats);
-          if (Array.isArray(parsed?.completedBooks)) {
-            setCompletedBooks(parsed.completedBooks);
-          }
-          if (Array.isArray(parsed?.monthData)) {
-            setMonthData(parsed.monthData);
-          }
           if (parsed?.range) setRange(parsed.range);
           if (parsed?.sortOrder) setSortOrder(parsed.sortOrder);
           return;
         }
 
-        if (userKey === DEFAULT_ACCOUNT_EMAIL) {
-          setCompletedBooks(DEFAULT_COMPLETED_BOOKS);
-          setMonthData(DEFAULT_MONTH_DATA);
-          setStreakValue(fallbackStreak);
-        } else {
-          setCompletedBooks([]);
-          setMonthData([]);
-          setStreakValue(fallbackStreak);
-        }
+        setStreakValue(fallbackStreak);
       } catch (error) {
         // ignore storage errors
         if (isMounted) {
@@ -206,6 +188,50 @@ export default function EstadisticasScreen({ navigation }) {
       isMounted = false;
     };
   }, [userKey]);
+
+  const completedBooksFromLibros = useMemo(() => {
+    const todayKey = toDateKey(new Date().toISOString());
+    return libros
+      .filter((libro) => libro.estado === 'Terminado')
+      .map((libro) => ({
+        id: libro.id,
+        titulo: libro.titulo || 'Sin titulo',
+        autor: libro.autor || 'Autor desconocido',
+        genero: libro.genero || 'General',
+        fecha: toDateKey(libro.fechaTerminado) || todayKey,
+        paginas: Number(libro.paginas) || 0,
+      }));
+  }, [libros]);
+
+  const completedBooks = useMemo(() => {
+    if (completedBooksFromLibros.length > 0) return completedBooksFromLibros;
+    if (userKey === DEFAULT_ACCOUNT_EMAIL) return DEFAULT_COMPLETED_BOOKS;
+    return [];
+  }, [completedBooksFromLibros, userKey]);
+
+  const monthData = useMemo(() => {
+    if (!completedBooks.length) return [];
+    const summary = new Map();
+    completedBooks.forEach((book) => {
+      const date = parseDate(book.fecha);
+      if (Number.isNaN(date.getTime())) return;
+      const monthIndex = date.getMonth();
+      const year = date.getFullYear();
+      const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+      if (!summary.has(key)) {
+        summary.set(key, {
+          key,
+          label: `${MONTH_LABELS[monthIndex]} ${year}`,
+          libros: 0,
+          paginas: 0,
+        });
+      }
+      const entry = summary.get(key);
+      entry.libros += 1;
+      entry.paginas += Number(book.paginas) || 0;
+    });
+    return Array.from(summary.values()).sort((a, b) => a.key.localeCompare(b.key));
+  }, [completedBooks]);
 
   useEffect(() => {
     if (!isHydrated) return;

@@ -182,9 +182,13 @@ export function LibrosProvider({ children }) {
   }, [generateLibroId]);
 
   const updateLibro = useCallback((libroActualizado) => {
-    setLibros((prev) => prev.map((libro) => (
-      libro.id === libroActualizado.id ? { ...libro, ...libroActualizado } : libro
-    )));
+    setLibros((prev) => prev.map((libro) => {
+      if (libro.id !== libroActualizado.id) return libro;
+      const nextEstado = libroActualizado.estado ?? libro.estado;
+      const shouldStamp = nextEstado === 'Terminado' && !libro.fechaTerminado;
+      const fechaTerminado = shouldStamp ? new Date().toISOString() : libro.fechaTerminado;
+      return { ...libro, ...libroActualizado, fechaTerminado };
+    }));
   }, []);
 
   const deleteLibro = useCallback((libroId) => {
