@@ -675,12 +675,6 @@ export default function MetasYHabitosScreen({ navigation }) {
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Leido hoy</Text>
             <Text style={styles.pagesToday}>{pagesToday} paginas</Text>
-            <Text style={styles.pagesSub}>Leidas hoy</Text>
-
-            <View style={styles.progressTrackSmall}>
-              <View style={[styles.progressFillSmall, { width: `${dailyPercent}%` }]} />
-            </View>
-            <Text style={styles.progressHint}>{pagesToday}/{DAILY_GOAL} paginas diarias</Text>
           </View>
 
           <View style={styles.sectionCard}>
