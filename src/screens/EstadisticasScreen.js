@@ -167,14 +167,12 @@ export default function EstadisticasScreen({ navigation }) {
           const parsed = JSON.parse(rawStats);
           if (parsed?.range) setRange(parsed.range);
           if (parsed?.sortOrder) setSortOrder(parsed.sortOrder);
-          return;
         }
-
-        setStreakValue(fallbackStreak);
       } catch (error) {
         // ignore storage errors
         if (isMounted) {
           setStreakValue(userKey === DEFAULT_ACCOUNT_EMAIL ? 7 : 0);
+          setDailyReadings({});
         }
       } finally {
         if (isMounted) {
@@ -184,6 +182,7 @@ export default function EstadisticasScreen({ navigation }) {
     };
 
     loadStats();
+
     return () => {
       isMounted = false;
     };

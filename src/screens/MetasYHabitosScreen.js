@@ -13,6 +13,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLibros } from '../context/LibrosContext';
 import MetaProgressCard from '../components/MetaProgressCard';
 import Streak from '../components/Streak';
 import CalendarStreak from '../components/CalendarStreak';
@@ -256,8 +257,14 @@ export default function MetasYHabitosScreen({ navigation }) {
     };
 
     loadUserData();
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadUserData();
+    });
+
     return () => {
       isMounted = false;
+      unsubscribe();
     };
   }, [userKey]);
 
@@ -298,7 +305,18 @@ export default function MetasYHabitosScreen({ navigation }) {
   }, [noticeOpacity, noticeScale]);
 
   const todaysKey = useMemo(() => formatDateKey(new Date()), []);
-  const pagesToday = dailyReadings[todaysKey] || 0;
+  const { libros, lastPageById } = useLibros();
+
+  const totalPagesFromProgress = useMemo(() => {
+    return libros.reduce((sum, libro) => {
+      const lastPage = Number(lastPageById?.[libro.id] || 0);
+      if (!lastPage) return sum;
+      const totalPages = Number(libro.paginas) || lastPage;
+      return sum + Math.min(lastPage, totalPages);
+    }, 0);
+  }, [libros, lastPageById]);
+
+  const pagesToday = totalPagesFromProgress || (dailyReadings[todaysKey] || 0);
 
   const currentMonthPages = useMemo(() => {
     const now = new Date();
