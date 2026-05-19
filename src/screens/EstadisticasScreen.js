@@ -125,7 +125,7 @@ export default function EstadisticasScreen({ navigation }) {
   const noticeOpacity = useRef(new Animated.Value(0)).current;
   const noticeScale = useRef(new Animated.Value(0.96)).current;
 
-  const { libros } = useLibros();
+  const { libros, lastPageById } = useLibros();
   const [range, setRange] = useState('mes');
   const [sortOrder, setSortOrder] = useState('reciente');
   const [showAllCompleted, setShowAllCompleted] = useState(false);
@@ -273,16 +273,26 @@ export default function EstadisticasScreen({ navigation }) {
     return completedBooks.filter((book) => isInRange(parseDate(book.fecha), range));
   }, [completedBooks, range]);
 
+  const totalPagesFromProgress = useMemo(() => {
+    return libros.reduce((sum, libro) => {
+      const lastPage = Number(lastPageById?.[libro.id] || 0);
+      if (!lastPage) return sum;
+      const totalPages = Number(libro.paginas) || lastPage;
+      return sum + Math.min(lastPage, totalPages);
+    }, 0);
+  }, [libros, lastPageById]);
+
   const kpis = useMemo(() => {
     const totalBooks = filteredBooks.length;
-    const totalPages = filteredBooks.reduce((sum, book) => sum + (book.paginas || 0), 0);
+    const pagesFromCompleted = filteredBooks.reduce((sum, book) => sum + (book.paginas || 0), 0);
+    const totalPages = totalPagesFromProgress || pagesFromCompleted;
     const streak = streakValue;
     return {
       totalBooks,
       totalPages,
       streak,
     };
-  }, [filteredBooks, streakValue]);
+  }, [filteredBooks, streakValue, totalPagesFromProgress]);
 
   const chartData = useMemo(() => {
     if (!monthData.length) return [];

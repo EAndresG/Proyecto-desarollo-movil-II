@@ -13,7 +13,9 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system/legacy';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLibros } from '../context/LibrosContext';
+import useAuth from '../hooks/useAuth';
 
 const PLACEHOLDER_HTML = `<!DOCTYPE html>
 <html lang="es">
@@ -30,8 +32,45 @@ const PLACEHOLDER_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
+const DEFAULT_ACCOUNT_EMAIL = 'test@example.com';
+
+const EMPTY_RACHA = {
+  diasActuales: 0,
+  mejorRacha: 0,
+  ultimaLectura: '',
+  completadoHoy: false,
+};
+
+function formatDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function calculateStreak(readings) {
+  const today = new Date();
+  let streak = 0;
+  let cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  while (true) {
+    const key = formatDateKey(cursor);
+    if (readings[key]) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  const keys = Object.keys(readings);
+  const lastReadKey = keys.sort().slice(-1)[0] || '';
+  return { streak, lastReadKey };
+}
+
 export default function LectorPDFScreen({ route, navigation }) {
   const { libroId } = route.params ?? {};
+  const { user } = useAuth();
+  const userKey = (user?.email || DEFAULT_ACCOUNT_EMAIL).toLowerCase();
   const { libros, lastPageById, setLastPage, updateLibro } = useLibros();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
@@ -54,6 +93,7 @@ export default function LectorPDFScreen({ route, navigation }) {
   const webRef = useRef(null);
   const dragStartRatio = useRef(0);
   const initialPageRef = useRef(page);
+  const lastTrackedPageRef = useRef(page);
 
   const extension = libro?.rutaArchivo?.split('?')[0].split('.').pop()?.toLowerCase();
   const isEpub = extension === 'epub';
@@ -76,11 +116,57 @@ export default function LectorPDFScreen({ route, navigation }) {
     setInputPage(String(page));
   }, [page]);
 
-  useEffect(() => {
-    if (libroId) {
-      setLastPage(libroId, page);
+  const updateDailyReadings = useCallback(async (delta) => {
+    if (!userKey || !Number.isFinite(delta) || delta <= 0) return;
+    const todayKey = formatDateKey(new Date());
+    try {
+      const rawGoals = await AsyncStorage.getItem(`user:${userKey}:goals`);
+      const parsedGoals = rawGoals ? JSON.parse(rawGoals) : {};
+      const dailyReadings = { ...(parsedGoals?.dailyReadings || {}) };
+      const current = Number(dailyReadings[todayKey] || 0);
+      dailyReadings[todayKey] = current + delta;
+
+      const { streak, lastReadKey } = calculateStreak(dailyReadings);
+      const prevRacha = { ...EMPTY_RACHA, ...(parsedGoals?.racha || {}) };
+      const nextRacha = {
+        ...prevRacha,
+        diasActuales: streak,
+        mejorRacha: Math.max(prevRacha.mejorRacha || 0, streak),
+        ultimaLectura: lastReadKey || prevRacha.ultimaLectura || todayKey,
+        completadoHoy: true,
+      };
+
+      await AsyncStorage.setItem(
+        `user:${userKey}:goals`,
+        JSON.stringify({
+          ...parsedGoals,
+          dailyReadings,
+          racha: nextRacha,
+        }),
+      );
+    } catch (error) {
+      // ignore storage errors
     }
-  }, [libroId, page, setLastPage]);
+  }, [userKey]);
+
+  useEffect(() => {
+    lastTrackedPageRef.current = page;
+  }, [libroId]);
+
+  useEffect(() => {
+    if (!libroId) return;
+    setLastPage(libroId, page);
+    const prevPage = lastTrackedPageRef.current;
+    if (page > prevPage) {
+      const delta = page - prevPage;
+      lastTrackedPageRef.current = page;
+      updateDailyReadings(delta);
+      return;
+    }
+    if (page !== prevPage) {
+      lastTrackedPageRef.current = page;
+    }
+  }, [libroId, page, setLastPage, updateDailyReadings]);
 
   useEffect(() => {
     if (!libro || isEpub) return;

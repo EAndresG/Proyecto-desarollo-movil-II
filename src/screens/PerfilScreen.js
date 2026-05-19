@@ -430,15 +430,6 @@ export default function PerfilScreen({ navigation }) {
                 🎯 Gestionar metas
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.quickBtn, { backgroundColor: colors.soft }]}
-              onPress={() => navigation.navigate('Recordatorios', { from: 'perfil' })}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.quickText, { color: colors.text, fontSize: 14 * fontScale }]}>
-                🔔 Ver recordatorios
-              </Text>
-            </TouchableOpacity>
           </View>
 
           <View style={styles.section}>
